@@ -56,3 +56,16 @@ input[type='text']{
 .button:hover{
     background: darkcyan;
 }
+
+.loader{
+    position: relative;
+    left: 140px;
+    top: 53px;
+    margin: 0 auto;
+    width: 30px;
+    height: 30px;
+}
+
+#progLoader{
+    display: none;
+}
