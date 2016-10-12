@@ -43,18 +43,22 @@ var appDir = __dirname + "/app";
 /// ===> GET zipcode data for zips 11102
 
 app.use("/zipcode",function(req,res){
-    var zip = (Object.keys(req.query))[0];
+    var zips = (Object.keys(req.query));
+    var result = {};
+    
+    for(var i = 0; i <zips.length; i++){
+       var zip = zips[i];
+       if(zipcodeData.hasOwnProperty(zip) && !result.hasOwnProperty(zip)){
+           result[zip] = zipcodeData[zip];
+       }
+    }
+    
+    result = JSON.stringify(result);
+    
+    //ensure the response is a json object
     res.setHeader('Content-Type', 'application/json');
-    
-    //if this zip exists in our data, return the json
-    if(zipcodeData.hasOwnProperty(zip)){
-        res.status(200).send(JSON.stringify(zipcodeData[zip]));
-    }
-    else {
-    //if this zip doesn't exist in our data, send 404
-        res.status(404).send({reason:'not found in db'});
-    }
-    
+    if(result == {}) res.status(404).send(result); 
+    else res.status(200).send(result);
 });
 
 app.use(compression());

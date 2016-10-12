@@ -134,6 +134,7 @@ module.exports = {
 		//we get ["lat1,lng1","lat2,lng2",...]
 		var coords = [];
 		var arrPairs = coordStr.split("/");
+		var bounds = new google.maps.LatLngBounds();
 		
 		//Now take that list and turn everything into a json object
 		//push that json object into the array 'coords'
@@ -144,7 +145,12 @@ module.exports = {
 				'lat': lat
 				, 'lng': lng
 			});
+			
+			bounds.extend(new google.maps.LatLng(lat,lng));
 		});
+		
+		//get the center of this region defined by the polygon
+		var regionCenter = {lat: bounds.getCenter().lat(), lng: bounds.getCenter().lng()};
 		
 		//turn that array 'coords' into a google polygon
 		var polygon = new google.maps.Polygon({
@@ -154,6 +160,7 @@ module.exports = {
             , strokeWeight: 1
             , fillColor: '#ff0000'
             , fillOpacity: 0.3
+			, centerCoord: regionCenter
         });
 		
 		return polygon;
@@ -229,29 +236,29 @@ gMap.load(function () {
 			//parse the response, turn it into a json object
 			var thesePolygons = [];
 			var response = JSON.parse(req.responseText);
-			var polygon = helpers.convertCoordStringToPolygon(response.coords[0]);
-			var latCenter = response.meta.latCenter;
-			var lngCenter = response.meta.lngCenter;
 			
-			//pan the map to the center coordinates
-			map.panTo(new google.maps.LatLng(latCenter, lngCenter));
+			for (var zip in response){
+				var coordString = response[zip].coords[0];
+				var polygon = helpers.convertCoordStringToPolygon(coordString);
+				thesePolygons.push(polygon);	
+			}
 			
-			//draw these polygons. Timeout used to allow the map to pan smoothly
-			//before being interrupted by the draw call
-			thesePolygons.push(polygon);
-			setTimeout(function(){
-				drawPolygonsOnMap(thesePolygons,latCenter,lngCenter)
-			},500);
+			//draw these polygons
+			drawPolygonsOnMap(thesePolygons);
 		}
 		else alert("We tried to ask the server, but something went wrong!");
 	}
 	
 	/// 3 - draw the polygons on the map
 	/// Draw the polygons
-	var drawPolygonsOnMap = function (polygons,latCenter,lngCenter){
+	var drawPolygonsOnMap = function (polygons){
 		
 		if(!google.maps) throw "Google Maps API not loaded!";
-				
+		
+		//this bounds will be useful in understanding the overall
+		//region covered by all the zips
+		var bounds = new google.maps.LatLngBounds();
+		
 		//clear the existing polygons (if any are drawn on the map)
 		currentPolygons.forEach(function(polyToClear){
 			if(polyToClear instanceof google.maps.Polygon){
@@ -259,11 +266,26 @@ gMap.load(function () {
 			}
 		});
 		
-		//now let currentPolygons point to the ones we need to draw
+		//now let currentPolygons point to the ones we need to draw. At the same
+		//time we're adding the centers of the different polygons to our bounds
 		currentPolygons = polygons;
 		currentPolygons.forEach(function(polyToDraw){
+			
+			//these are the center coordinates of each polygon
+			var lat = polyToDraw.centerCoord.lat;
+			var lng = polyToDraw.centerCoord.lng;
+			
+			//extend the bounds of our region to these coords
+			bounds.extend(new google.maps.LatLng(lat,lng));
+			
+			//draw the polygon
 			polyToDraw.setMap(map);
 		});
+		
+		//the polygons are on the map, and now we need to recenter the map
+		//let's get the center of the bounds region
+		map.panTo(bounds.getCenter());
+		map.fitBounds(bounds);
 	}	
 });
 

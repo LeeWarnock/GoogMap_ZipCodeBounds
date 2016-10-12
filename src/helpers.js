@@ -93,6 +93,7 @@ module.exports = {
 		//we get ["lat1,lng1","lat2,lng2",...]
 		var coords = [];
 		var arrPairs = coordStr.split("/");
+		var bounds = new google.maps.LatLngBounds();
 		
 		//Now take that list and turn everything into a json object
 		//push that json object into the array 'coords'
@@ -103,7 +104,12 @@ module.exports = {
 				'lat': lat
 				, 'lng': lng
 			});
+			
+			bounds.extend(new google.maps.LatLng(lat,lng));
 		});
+		
+		//get the center of this region defined by the polygon
+		var regionCenter = {lat: bounds.getCenter().lat(), lng: bounds.getCenter().lng()};
 		
 		//turn that array 'coords' into a google polygon
 		var polygon = new google.maps.Polygon({
@@ -113,6 +119,7 @@ module.exports = {
             , strokeWeight: 1
             , fillColor: '#ff0000'
             , fillOpacity: 0.3
+			, centerCoord: regionCenter
         });
 		
 		return polygon;
