@@ -66,6 +66,12 @@ var lameScriptTag = document.createElement("script");
 lameScriptTag.innerHTML = dumbInitFuncForMapsAPI;
 document.body.appendChild(lameScriptTag);
 
+//Let's say the init location of the map was San Diego
+//TBD - this will not exist in the final version
+var initLocation = {
+	lat: 32.7157
+	, lng: -117.1611
+}
 
 module.exports = {
 	
@@ -73,11 +79,28 @@ module.exports = {
 	/// this method loads the Google Maps API using script
 	/// injection. Once that API loads, it invokes the callback
 	///--------------------------------------------------------------
-	load: function (callback) {
+	load: function (mapElem, callback) {		
+		
+		//<script> tag params
 		var scriptTag = document.createElement("script");
 		scriptTag.src = urlGoogleMapsApi;
 		scriptTag.type = 'text/javascript';
-		scriptTag.onload = callback;
+		
+		//once its loaded, do this
+		scriptTag.onload = function () {			
+			//let's init our map object and draw something
+			//in the DOM element with id 'map'
+			var map = new google.maps.Map(mapElem, {
+				zoom: 12
+				, center: initLocation
+				, mapTypeId: 'terrain'
+			});
+			
+			//send the map object
+			callback(map);
+		};
+		
+		//add the <script> tag
 		document.body.appendChild(scriptTag);
 	},
 	
@@ -388,90 +411,60 @@ module.exports = {
 	///-------------------------------------------------------------------------
 	/// Create a google.maps.Marker from the coordinates and the label
 	/// provided in the arguments
-	///-------------------------------------------------------------------------
-	getMarker: function(coord,label){
-		
-		var marker = new google.maps.Marker({
-			position: coord,
-			title: label
-		});
-		
-		return marker;
-	},
-	
+	///-------------------------------------------------------------------------	
 	getCustomMarker: function(coord,label){
-		var CustomMarker = require("./customMarker");
+		var CustomMarker = require("./gmaps/customMarker");
 		var cusMark = new CustomMarker(coord,label);
 		return cusMark;		
 	}
 }
 
 
-},{"./customMarker":1}],4:[function(require,module,exports){
+},{"./gmaps/customMarker":1}],4:[function(require,module,exports){
 //import our modules
-var gMap = require("./gmap");
+var gMap = require("./gmaps/gmap");
 var helpers = require("./helpers");
 
+//get the DOM elem where the map will be drawn
+var mapElem = document.getElementById('map');
 
 //global objects to track our map 
 //and our polygons
-var map;
 var currentPolygons = [];
 var currentMarkers = [];
 
 //flags to toggle visibility of things
 var showMarkers = false;
-var isPolyOpacityRandom = false;
+var isPolyOpacityRandom = true;
 
 //TBD - get rid of this when deploying
-var fakeDelayMillis = 1000;
-var minOpacity = 30, maxOpacity = 70;
+var minOpacity = 15, maxOpacity = 50;
 
 // load the maps module - it will add the google maps script to the body
 // and bring us to the callback here
-gMap.load(function () {
+gMap.load(mapElem, function (map) {
 	
-	//Let's say the init location of the map was San Diego
-	var initLocation = {
-		lat: 32.7157
-		, lng: -117.1611
-	}
-	
-	//let's init our map object and draw something
-	//in the DOM element with id 'map'
-	map = new google.maps.Map(document.getElementById('map'), {
-        zoom: 12
-        , center: initLocation
-        , mapTypeId: 'terrain'
-    });
+	console.log("---> Loaded GMaps API")
 	
 	//Our UI elements
 	var button = document.getElementById("btnDo");
     var textBox = document.getElementById("txtData");
 	var loader = document.getElementById("progLoader");
-	var chkShowMarkers = document.getElementById("chkShowMarkers");
-	var chkRandomOpacity = document.getElementById("chkRandomOpacity");
 	
-    
 	///-------------------------------------------------------------------------
 	/// Button clicked
 	/// This triggers everything
 	///-------------------------------------------------------------------------
 	button.onclick = function () {
-		
-		//initialize our flags to match the state of our checkboxes
-		isPolyOpacityRandom = chkRandomOpacity.checked;
-		showMarkers = chkShowMarkers.checked;
-		
+				
 		//clear anything that might have been drawn before
 		gMap.clearPolygonsOnMap(currentPolygons);
 		gMap.clearMarkersOnMap(currentMarkers);
 			
 		//let's validate what the user's entered
-        var entered = textBox.value.trim();			//get rid of all spaces
-		var lstZipCodes = entered.split(',');		//split by commas
-		
-						
+        var entered = textBox.value.trim().replaceAll("\n",'').replaceAll(" ","");			//get rid of all spaces and new lines
+		var lstZipCodes = entered.split(',');												//split by commas
+								
 		if (helpers.validateZips(lstZipCodes)) {
 			
 			//show the progress loader
@@ -479,15 +472,16 @@ gMap.load(function () {
 			
 			//all the entered zips are valid. Let's do our thing now...
 			//GET all the zip code data from the server
-			helpers.getZipsFromServerInParts(lstZipCodes, "/zipcodes?", handleData);
-			
-			//helpers.httpGetAsync(url, handleResponse, fakeDelayMillis);
+			helpers.getZipsFromServerInParts(lstZipCodes, "/zipcodes?", handleData);			
 		}
 		else {
 			alert("Dude! You need to enter valid zips. Don't be messing around now.");
 		}
 	}
-
+	
+	///-------------------------------------------------------------------------
+	/// handle the zipcode data returned by the server
+	///-------------------------------------------------------------------------
 	var handleData = function (data) {
 		var thesePolygons = [];
 		var theseMarkers = [];
@@ -516,67 +510,22 @@ gMap.load(function () {
 		}
 		
 		loader.hide();
-		drawPolygonsOnMap(thesePolygons);
-		if (showMarkers) drawMarkersOnMap(theseMarkers);
-
+		drawOnMap(thesePolygons, theseMarkers);
 	}
 	
 	///-------------------------------------------------------------------------
-	/// handle response of GET call (Server sends zipcode data)
-	/// Server's responded, process the response
+	/// draw the polygons and markers on the map	 
 	///-------------------------------------------------------------------------
-	var handleResponse = function (req) {
-		loader.hide();
-		if (req.status == 200) {
-			
-			//if the request was executed successfully, get the response
-			//parse the response, turn it into a json object
-			var response = JSON.parse(req.responseText);
-			
-			//get a polygon for every zip in the response. store it in
-			//a local array called 'thesePolygons'
-			var thesePolygons = [];
-			var theseMarkers = [];
-
-			for (var zipStr in response) {
-				
-				//get a random opacity between 0.1 and 0.5 if the flag is true, else just use 0.5
-				//dividing by ten since the function returns integers between a certain range
-				var opacity = ((isPolyOpacityRandom) ? helpers.getRandomBetweenInts(minOpacity, maxOpacity) : maxOpacity) / 100;
-				
-				//get the zip, get the polygon for that zip, get the marker for that polygon
-				var zipData = response[zipStr];
-				var polygon = helpers.converZipToPolygon(zipStr, zipData, opacity);
-				var marker = helpers.getCustomMarker(polygon.centerCoord, zipStr);
-								
-				//push into respective arrays
-				thesePolygons.push(polygon);
-				theseMarkers.push(marker);
-			}
-			
-			
-			//now that we have 'thesePolygons', lets draw them on the map
-			drawPolygonsOnMap(thesePolygons);
-			if (showMarkers) drawMarkersOnMap(theseMarkers);
-		}
-		else alert("We tried to ask the server, but something went wrong!");
+	
+	var drawOnMap = function(polygons, markers){
+		currentPolygons = polygons;
+		currentMarkers = markers;
+		gMap.drawPolygonsOnMap(currentPolygons,map);
+		gMap.drawMarkersOnMap(currentMarkers,map); 
 	}
-
-	///-------------------------------------------------------------------------
-	/// draw the polygons on the map
-	/// clear the current polygons (if any), then draw the new ones 
-	///-------------------------------------------------------------------------
-	var drawPolygonsOnMap = function (thesePolygons) {
-		currentPolygons = thesePolygons;
-		gMap.drawPolygonsOnMap(currentPolygons, map);
-	}
-
-	var drawMarkersOnMap = function (theseMarkers) {
-		currentMarkers = theseMarkers;
-		gMap.drawMarkersOnMap(currentMarkers, map);
-	}
+	
 });
 
 
 
-},{"./gmap":2,"./helpers":3}]},{},[4]);
+},{"./gmaps/gmap":2,"./helpers":3}]},{},[4]);

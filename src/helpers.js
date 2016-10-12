@@ -236,19 +236,9 @@ module.exports = {
 	///-------------------------------------------------------------------------
 	/// Create a google.maps.Marker from the coordinates and the label
 	/// provided in the arguments
-	///-------------------------------------------------------------------------
-	getMarker: function(coord,label){
-		
-		var marker = new google.maps.Marker({
-			position: coord,
-			title: label
-		});
-		
-		return marker;
-	},
-	
+	///-------------------------------------------------------------------------	
 	getCustomMarker: function(coord,label){
-		var CustomMarker = require("./customMarker");
+		var CustomMarker = require("./gmaps/customMarker");
 		var cusMark = new CustomMarker(coord,label);
 		return cusMark;		
 	}

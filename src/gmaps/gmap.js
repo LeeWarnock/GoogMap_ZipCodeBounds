@@ -17,6 +17,12 @@ var lameScriptTag = document.createElement("script");
 lameScriptTag.innerHTML = dumbInitFuncForMapsAPI;
 document.body.appendChild(lameScriptTag);
 
+//Let's say the init location of the map was San Diego
+//TBD - this will not exist in the final version
+var initLocation = {
+	lat: 32.7157
+	, lng: -117.1611
+}
 
 module.exports = {
 	
@@ -24,11 +30,28 @@ module.exports = {
 	/// this method loads the Google Maps API using script
 	/// injection. Once that API loads, it invokes the callback
 	///--------------------------------------------------------------
-	load: function (callback) {
+	init: function (mapElem, callback) {		
+		
+		//<script> tag params
 		var scriptTag = document.createElement("script");
 		scriptTag.src = urlGoogleMapsApi;
 		scriptTag.type = 'text/javascript';
-		scriptTag.onload = callback;
+		
+		//once its loaded, do this
+		scriptTag.onload = function () {			
+			//let's init our map object and draw something
+			//in the DOM element with id 'map'
+			var map = new google.maps.Map(mapElem, {
+				zoom: 12
+				, center: initLocation
+				, mapTypeId: 'terrain'
+			});
+			
+			//send the map object
+			callback(map);
+		};
+		
+		//add the <script> tag
 		document.body.appendChild(scriptTag);
 	},
 	

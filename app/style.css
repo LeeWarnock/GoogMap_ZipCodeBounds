@@ -30,35 +30,16 @@ p{
     left: 10px;
 }
 
-input[type='textarea']{
+textarea{
     border:1px solid gray;
     position: relative;
     width:265px;
-    height:35px;
-    padding-left:10px;
+    height:85px;
     left: 10px;
     font-size: 12px;
+    padding: 5px;
 }
 
-.checkboxes{
-    position: relative;
-    left:10px;
-    top:3px;
-    width: 200px;
-}
-
-ul{
-    list-style: none;
-}
-
-li{
-    margin-left: -40px;
-    margin-top: 5px;
-}
-
-input[type="checkbox"]{
-    margin-right:10px;
-}
 
 .button{
     position:relative;
