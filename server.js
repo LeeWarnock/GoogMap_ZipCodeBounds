@@ -42,14 +42,17 @@ var appDir = __dirname + "/app";
 /// http://localhost:3000/zipcode?11102
 /// ===> GET zipcode data for zips 11102
 
-app.use("/zipcode",function(req,res){
+app.get("/zipcodes",function(req,res){
     var zips = (Object.keys(req.query));
     var result = {};
     
+    console.log("\n-------------------> Zips requested:",zips.length);
+    console.log(zips.join(","));
+    
     for(var i = 0; i <zips.length; i++){
        var zip = zips[i];
-       if(zipcodeData.hasOwnProperty(zip) && !result.hasOwnProperty(zip)){
-           result[zip] = zipcodeData[zip];
+       if(!result.hasOwnProperty(zip)){
+           result[zip] = (zipcodeData.hasOwnProperty(zip))? zipcodeData[zip] : null;
        }
     }
     
@@ -60,6 +63,7 @@ app.use("/zipcode",function(req,res){
     if(result == {}) res.status(404).send(result); 
     else res.status(200).send(result);
 });
+
 
 app.use(compression());
 app.use(express.static(appDir));
