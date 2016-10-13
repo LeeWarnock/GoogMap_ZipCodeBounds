@@ -88,16 +88,20 @@ module.exports = {
 				var lat = polyToDraw.centerCoord.lat;
 				var lng = polyToDraw.centerCoord.lng;
 			
-				//extend the bounds of our region to include these coords
-				bounds.extend(new google.maps.LatLng(lat, lng));
-			
+				//extend the bounds of our region to include the bounds
+				//of this polygon
+				//this is very important as it allows you to scale to the
+				//correct zoom level 
+				bounds.union(polyToDraw.bounds);
+				
 				//draw the polygon
 				polyToDraw.setMap(map);
 
 			});
-		
-			//the polygons are on the map, and now we need to recenter the map
-			//let's get the center of the bounds region
+			
+			//the object 'bounds' now contains the largest outer rect
+			//that represents the best view of the map. Use this to 
+			//recenter the map and adjust the zoom level
 			map.panTo(bounds.getCenter());
 			map.fitBounds(bounds);
 		}

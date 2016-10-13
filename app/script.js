@@ -79,7 +79,7 @@ module.exports = {
 	/// this method loads the Google Maps API using script
 	/// injection. Once that API loads, it invokes the callback
 	///--------------------------------------------------------------
-	load: function (mapElem, callback) {		
+	init: function (mapElem, callback) {		
 		
 		//<script> tag params
 		var scriptTag = document.createElement("script");
@@ -138,12 +138,13 @@ module.exports = {
 				var lng = polyToDraw.centerCoord.lng;
 			
 				//extend the bounds of our region to include these coords
-				bounds.extend(new google.maps.LatLng(lat, lng));
-			
+				bounds.union(polyToDraw.bounds);
+				console.log(polyToDraw);
 				//draw the polygon
 				polyToDraw.setMap(map);
 
 			});
+			
 		
 			//the polygons are on the map, and now we need to recenter the map
 			//let's get the center of the bounds region
@@ -442,7 +443,7 @@ var minOpacity = 15, maxOpacity = 50;
 
 // load the maps module - it will add the google maps script to the body
 // and bring us to the callback here
-gMap.load(mapElem, function (map) {
+gMap.init(mapElem, function (map) {
 	
 	console.log("---> Loaded GMaps API")
 	
