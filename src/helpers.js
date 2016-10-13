@@ -110,7 +110,7 @@ module.exports = {
 	///-------------------------------------------------------------------------
 	getZipsFromServerInParts: function(lstZips, route, callback){
 		
-		console.log("---> total number of zips",lstZips.length);
+		//console.log("---> total number of zips",lstZips.length);
 		
 		//lstZips might be extremely large, so we'll split it into smaller chunk
 		//sized lists. For each chunk sized list, we'll form a url and get the data 

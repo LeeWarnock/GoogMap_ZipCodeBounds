@@ -46,7 +46,7 @@ app.get("/zipcodes",function(req,res){
     var zips = (Object.keys(req.query));
     var result = {};
     
-    console.log("\n-------------------> Zips requested:",zips.length);
+    console.log("\n--> Zips requested:",zips.length);
     console.log(zips.join(","));
     
     for(var i = 0; i <zips.length; i++){
