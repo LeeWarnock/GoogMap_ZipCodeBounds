@@ -21,7 +21,7 @@ var minOpacity = 15, maxOpacity = 50;
 // and bring us to the callback here
 gMap.init(mapElem, function (map) {
 	
-	console.log("---> Loaded GMaps API")
+	//console.log("---> Loaded GMaps API")
 	
 	//Our UI elements
 	var button = document.getElementById("btnDo");
@@ -81,7 +81,7 @@ gMap.init(mapElem, function (map) {
 				theseMarkers.push(marker);
 			}
 			else {
-				console.log('this zipcode', zipStr, "is", data[zipStr]);
+				//console.log('this zipcode', zipStr, "is", data[zipStr]);
 				failed.push(zipStr);
 			}
 		}

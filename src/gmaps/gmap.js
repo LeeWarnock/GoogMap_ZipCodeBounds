@@ -104,6 +104,7 @@ module.exports = {
 			//recenter the map and adjust the zoom level
 			map.panTo(bounds.getCenter());
 			map.fitBounds(bounds);
+			
 		}
 		else throw "Google Maps API not loaded or map object is invalid"
 	},
