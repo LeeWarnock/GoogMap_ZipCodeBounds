@@ -8,7 +8,7 @@
 	var params = {
 		initLoc: { lat: 32.7157, lng: -117.1611 },
 		domElem: document.getElementById('map'),
-		zipcodes: ["11102","10001","11101"],
+		zipcodes: [],
 		apiRoute: "/zipcodes?"
 	};
 

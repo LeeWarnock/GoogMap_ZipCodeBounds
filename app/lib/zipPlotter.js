@@ -370,11 +370,29 @@ var isParamsValid = function (params) {
  ******************************************************************************/
 var ZipPlotter = function (params, callback) {
 
+	///global reference to this zipPlotter object
 	var thisObj = this;
-	var zipcodes, apiRoute, map;
-	var polygons = [];
-	var markers = [];
+	
+	///input parameters that are passed to this zipPlotter
+	var initLoc,
+		zipcodes,
+		apiRoute,
+		map;
+		
+	//lists to store Polygons and Markers that might be drawn on the map
+	var polygons = [], markers = [];
+	
+	//reference to the map object 
 	var map = null;
+	
+	//flags to toggle visibility of markers and polygons
+	var isMarkerShown = true, isPolygonShown = true;
+	
+	//the zip code data (fetched from the server)
+	var zipcodeData = null;
+	
+	//the zoom level below which the marker labels are hidden
+	var zoomLevelThreshold = 12
 	
 	///---------------------------------------------------------------------
 	/// this will initialize a map, configure the object based on the params
@@ -383,25 +401,39 @@ var ZipPlotter = function (params, callback) {
 	var init = function () {
 		if (isParamsValid(params)) {
 			
+			//save the initial location of the map
+			initLoc = params.initLoc;
+			
 			//draw the map with the initial location
 			map = new google.maps.Map(params.domElem, {
 				zoom: 12,
-				center: params.initLoc,
+				center: initLoc,
 				mapTypeId: 'terrain',
 			});
+			
+			//attach a "zoom changed listener"
+			map.addListener('zoom_changed', manageMarkersWithZoom);
 			
 			//save some of these params, we might need them later
 			zipcodes = params.zipcodes;
 			apiRoute = params.apiRoute;
-			
-			//pull all the data from the data API
-			helper.getZipsFromServerInParts(zipcodes, apiRoute, draw);
+			fetchAndDraw();
 		}
 		else throw "You're missing one or more parameters to create this object"
 	}
 	
 	///---------------------------------------------------------------------
-	/// clear any existing polygons on the map
+	/// Fetch the data from the server, draw it on the map
+	///---------------------------------------------------------------------
+	var fetchAndDraw = function () {
+		helper.getZipsFromServerInParts(zipcodes, apiRoute, function (data) {
+			zipcodeData = data;
+			draw(zipcodeData);
+		})
+	}
+	
+	///---------------------------------------------------------------------
+	/// clear any existing polygons/markers on the map
 	///---------------------------------------------------------------------
 	var clear = function () {
 		helper.clearPolygonsOnMap(polygons);
@@ -414,6 +446,8 @@ var ZipPlotter = function (params, callback) {
 	/// draw all polygons on the map
 	///---------------------------------------------------------------------
 	var draw = function (allData) {
+
+		console.log("draw called")
 
 		if (allData != null) {
 			clear();
@@ -430,10 +464,10 @@ var ZipPlotter = function (params, callback) {
 				}
 			}
 
-			helper.drawPolygonsOnMap(polygons, map);
-			helper.drawMarkersOnMap(markers, map);
+			if (isPolygonShown) helper.drawPolygonsOnMap(polygons, map);
+			if (isMarkerShown) helper.drawMarkersOnMap(markers, map);
 		}
-		
+
 		callback(thisObj);
 	}
 	
@@ -443,6 +477,28 @@ var ZipPlotter = function (params, callback) {
 	this.update = function (newZips) {
 		zipcodes = newZips;
 		helper.getZipsFromServerInParts(zipcodes, apiRoute, draw);
+	}
+
+	///---------------------------------------------------------------------
+	/// this function manages the visibility of the markers based on the 
+	/// zoom level of the map. This is the callback for 'zoom_changed' event
+	/// for the google map used by this zipPlotter object
+	///---------------------------------------------------------------------
+	var manageMarkersWithZoom = function () {
+		var zoomLevel = map.getZoom();
+		console.log("--> zoom:", zoomLevel,"thresh:",zoomLevelThreshold);
+
+		if (isMarkerShown && zoomLevel < zoomLevelThreshold) {
+			isMarkerShown = false;
+			helper.clearMarkersOnMap(markers);
+			console.log("-----> zoomed out, clearing markers", isMarkerShown);
+
+		}
+		else if (!isMarkerShown && zoomLevel >= zoomLevelThreshold) {
+			isMarkerShown = true;
+			helper.drawMarkersOnMap(markers, map);
+			console.log("-----> zoomed in, showing markers");
+		}
 	}
 	
 	//is the google maps API loaded, start init. If not, load it
