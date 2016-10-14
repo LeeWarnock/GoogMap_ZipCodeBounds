@@ -50,7 +50,9 @@ var ZipPlotter = function (params, callback) {
 	var zipcodeData = null;
 	
 	//the zoom level below which the marker labels are hidden
-	var zoomLevelThreshold = 12
+	var zoomLevelThreshold = 12;
+	
+	var polygonFillColor
 	
 	///---------------------------------------------------------------------
 	/// this will initialize a map, configure the object based on the params
@@ -109,19 +111,16 @@ var ZipPlotter = function (params, callback) {
 
 		if (allData != null) {
 			clear();
-				
+			
+			var polygon;
 			//now we have all the boundary data from the server
 			//let's get a polygon for each of the zipcodes in the data
 			for (var zipStr in allData) {
 				if (allData[zipStr] != null) {
 					var zipData = allData[zipStr];
-					var polygon = helper.converZipToPolygon(zipStr, zipData, 0.6);
-					
-					polygon.addListener("click",function(event){
-						console.log("Clicked:", polygon.tag);						
-					})
-					
+					polygon = helper.converZipToPolygon(zipStr, zipData, 0.6,thisObj.polygon_clickHandler);					
 					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr);
+					
 					polygons.push(polygon);
 					markers.push(marker);
 				}
@@ -132,6 +131,10 @@ var ZipPlotter = function (params, callback) {
 		}
 
 		callback(thisObj);
+	}
+	
+	this.polygon_clickHandler = function(polygon,zipcode){
+		console.log(zipcode,polygon);
 	}
 	
 	///---------------------------------------------------------------------

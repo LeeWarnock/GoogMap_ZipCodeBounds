@@ -48,7 +48,7 @@ CustomMarker.prototype.onRemove = function(){
 module.exports = CustomMarker;
 },{}],2:[function(require,module,exports){
 module.exports = {
-	
+			
 	///---------------------------------------------------------------------
 	/// returns True if the google.maps namespace exists
 	///---------------------------------------------------------------------
@@ -206,7 +206,7 @@ module.exports = {
 	/// to a google polygon object that can be drawn on the map. Each coordString
 	/// must represent a single polygon
 	///-------------------------------------------------------------------------
-	converZipToPolygon: function (zipStr, zipData, opacity) {
+	converZipToPolygon: function (zipStr, zipData, opacity, clickHandler) {
 		
 		if(!google.maps) throw "Google Maps API not found!";
 		
@@ -247,6 +247,16 @@ module.exports = {
 			, tag: zipStr
 			, bounds: bounds
         });
+		
+		//attach a click handler for each polygon. This is a nice hack to
+		//give me access to the polygon inside this event handler
+		google.maps.event.addListener(polygon, 'click', function(){			
+			var thisPoly = this;
+			var zipcode = thisPoly.tag;			
+			if(typeof(clickHandler) == typeof(function(){})){
+				clickHandler(thisPoly,zipcode);
+			}
+		});
 		
 		return polygon;
 	},
@@ -392,7 +402,9 @@ var ZipPlotter = function (params, callback) {
 	var zipcodeData = null;
 	
 	//the zoom level below which the marker labels are hidden
-	var zoomLevelThreshold = 12
+	var zoomLevelThreshold = 12;
+	
+	var polygonFillColor
 	
 	///---------------------------------------------------------------------
 	/// this will initialize a map, configure the object based on the params
@@ -451,21 +463,16 @@ var ZipPlotter = function (params, callback) {
 
 		if (allData != null) {
 			clear();
-				
+			
+			var polygon;
 			//now we have all the boundary data from the server
 			//let's get a polygon for each of the zipcodes in the data
 			for (var zipStr in allData) {
 				if (allData[zipStr] != null) {
 					var zipData = allData[zipStr];
-					var polygon = helper.converZipToPolygon(zipStr, zipData, 0.6);
-					
-					polygon.addListener("click",function(event){
-						console.log("Clicked:", polygon.tag);
-						polygon.fillColor = "#ff00ff";
-						polygon.setMap(map);
-					})
-					
+					polygon = helper.converZipToPolygon(zipStr, zipData, 0.6,thisObj.polygon_clickHandler);					
 					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr);
+					
 					polygons.push(polygon);
 					markers.push(marker);
 				}
@@ -476,6 +483,10 @@ var ZipPlotter = function (params, callback) {
 		}
 
 		callback(thisObj);
+	}
+	
+	this.polygon_clickHandler = function(polygon,zipcode){
+		console.log(zipcode,polygon);
 	}
 	
 	///---------------------------------------------------------------------

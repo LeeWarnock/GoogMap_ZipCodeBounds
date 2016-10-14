@@ -1,5 +1,5 @@
 module.exports = {
-	
+			
 	///---------------------------------------------------------------------
 	/// returns True if the google.maps namespace exists
 	///---------------------------------------------------------------------
@@ -157,7 +157,7 @@ module.exports = {
 	/// to a google polygon object that can be drawn on the map. Each coordString
 	/// must represent a single polygon
 	///-------------------------------------------------------------------------
-	converZipToPolygon: function (zipStr, zipData, opacity) {
+	converZipToPolygon: function (zipStr, zipData, opacity, clickHandler) {
 		
 		if(!google.maps) throw "Google Maps API not found!";
 		
@@ -198,6 +198,16 @@ module.exports = {
 			, tag: zipStr
 			, bounds: bounds
         });
+		
+		//attach a click handler for each polygon. This is a nice hack to
+		//give me access to the polygon inside this event handler
+		google.maps.event.addListener(polygon, 'click', function(){			
+			var thisPoly = this;
+			var zipcode = thisPoly.tag;			
+			if(typeof(clickHandler) == typeof(function(){})){
+				clickHandler(thisPoly,zipcode);
+			}
+		});
 		
 		return polygon;
 	},
@@ -260,8 +270,7 @@ module.exports = {
 			//that represents the best view of the map. Use this to 
 			//recenter the map and adjust the zoom level
 			map.panTo(bounds.getCenter());
-			map.fitBounds(bounds);
-			
+			map.fitBounds(bounds);			
 		}
 		else throw "Google Maps API not loaded or map object is invalid"
 	},
