@@ -44,7 +44,7 @@ b. It serves the static pages of the app, so basically when you hit "http://loca
 c. It responds to requests that the application makes to get zip code boundary data
 
 
-GETTING STARTED
+RUNNING THE APP
 ----------------
 If you're simply looking to run the app, switch to the root directory at the terminal. Then type
 
