@@ -47,6 +47,10 @@ c. It responds to requests that the application makes to get zip code boundary d
 
 RUNNING THE APP
 ----------------
+Since github doesn't allow me to upload large files, you can grab the "data" directory here:
+      https://www.dropbox.com/sh/t1xbyvbzneq0jfh/AABrClgy44q4Xix23PKGaChGa?dl=0
+
+Download this directory, put it in the project root and follow the instructions below.
 If you're simply looking to run the app, switch to the root directory at the terminal. Then type
 
       $> node server.js

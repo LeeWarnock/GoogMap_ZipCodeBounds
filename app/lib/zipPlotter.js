@@ -458,6 +458,13 @@ var ZipPlotter = function (params, callback) {
 				if (allData[zipStr] != null) {
 					var zipData = allData[zipStr];
 					var polygon = helper.converZipToPolygon(zipStr, zipData, 0.6);
+					
+					polygon.addListener("click",function(event){
+						console.log("Clicked:", polygon.tag);
+						polygon.fillColor = "#ff00ff";
+						polygon.setMap(map);
+					})
+					
 					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr);
 					polygons.push(polygon);
 					markers.push(marker);
