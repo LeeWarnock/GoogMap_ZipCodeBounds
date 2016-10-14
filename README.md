@@ -48,7 +48,7 @@ GETTING STARTED
 ----------------
 If you're simply looking to run the app, switch to the root directory at the terminal. Then type
 
-$> node server.js
+      $> node server.js
 
 You'll then see the server running on localhost (port 3000). Simply type in "http://localhost:3000" in your browser and you'll get the application
 
@@ -57,6 +57,6 @@ EDITING THE SOURCE
 If you're looking to build the zip plotter library or make changes to the source code, focus your attention to the "lr-maps" folder. Once you've made your changes, switch
 to the project root directory at the terminal, then type:
 
-$> npm run build
+      $> npm run build
 
 This will launch the build script in package.json, which will in turn browserify the whole "src" folder and dump a fresh instance of "zipPlotter.js" in the app/lib directory
