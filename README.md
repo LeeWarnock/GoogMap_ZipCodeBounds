@@ -24,12 +24,14 @@ The application is pretty simple. It creates a zipPlotter object, and then draws
 You can find the entire source code for this library in the "src" folder in the project. This folder contains:
 
 /src
-  |____ lr-maps/
-        |____ zipPlotter.js		- The actual class that is exposed to the global namespace
-      |____ helpers.js			- The static helper methods used by zipPlotter.js (a bulk of the work happens here)
-      |____ customMarker.js		- A custom marker that is drawn on top of the maps (which is used to show the zipcode)
+
+---lr-maps/
+
+        ---zipPlotter.js		
+        ---helpers.js			
+        ---customMarker.js		
       
-  |____ makeLib.js						- Only has two lines of code. All it does is requires the zipPlotter.js and adds it to the global namespace
+---makeLib.js						
   
 Note: The "makelib.js" file is really just used by the npm build script in package.json
 
