@@ -1,43 +1,58 @@
-Google Maps Polygons
+ZIP PLOTTER LIBRARY
 ---------------------
-This is a sample application that can be used to test the accuracy of the zip code boundary data of a given source.
+This is the source code for a JS library that will allow you to plot zip code boundaries
+on a google map. There are three main components that you must consider:
 
-There are three major parts to this app:
+1. Application
+-----------------
+There is a sample application in the 'app' directory. The files are:
 
-a. Client side app - stored in "app" directory
-b. Server - a small "expressJs" server that serves the client app
-c. Data - a json file which will be used by the server to get the data
+/app
+  |____ lib								
+  		  |____ zipPlotter.js		- This is the zipPlotter JS library
+			
+  |____ index.html					- app HTML
+  |____ index.js					- app JS, uses the library
+  |____ style.css					- stylesheet
+  
+ The application is pretty simple. It creates a zipPlotter object, and then draws zip code boundaries based on the inputs provided by the user using the HTML form.
+ 
+ 2. The ZipPlotter JS Library
+ -----------------------------
+ You can find the entire source code for this library in the "src" folder in the project. This folder contains:
+ 
+ /src
+   |____ lr-maps/
+   			  |____ zipPlotter.js		- The actual class that is exposed to the global namespace
+			  |____ helpers.js			- The static helper methods used by zipPlotter.js (a bulk of the work happens here)
+			  |____ customMarker.js		- A custom marker that is drawn on top of the maps (which is used to show the zipcode)
+			  
+   |____ makeLib.js						- Only has two lines of code. All it does is requires the zipPlotter.js and adds it to the global namespace
+   
+  Note: The "makelib.js" file is really just used by the npm build script in package.json
+  
+  3. App Server
+  --------------
+  This is a simple nodeJS server (in server.js) that does these things:
+  
+  a. When you launch the server, it deserializes "data/data.json" (which is a huge json file containing all the zipcode data) and caches it in the RAM. This will now act like our database
+  b. It serves the static pages of the app, so basically when you hit "http://localhost:3000", it serves up the 'app' directory
+  c. It responds to requests that the application makes to get zip code boundary data
+  
+  
+ GETTING STARTED
+ ----------------
+ If you're simply looking to run the app, switch to the root directory at the terminal. Then type
+  
+ 	$> node server.js
+ 
+ You'll then see the server running on localhost (port 3000). Simply type in "http://localhost:3000" in your browser and you'll get the application
+ 
+ EDITING THE SOURCE
+ -------------------
+ If you're looking to build the zip plotter library or make changes to the source code, focus your attention to the "lr-maps" folder. Once you've made your changes, switch
+ to the project root directory at the terminal, then type:
+ 
+ 	$> npm run build
 
-Before you run the app, ensure that you have a file named "data.json" stored in the 'data' directory. This file will contain the boundary coordinates for all the zipcode you want to test.
-
-I've mined the US Census bureau data and created a data.json to demonstrate the concept. Download it from here:
-
-    https://www.dropbox.com/s/7k89nr8o32cvikf/data.json?dl=0
-    
-To run the app on your terminal, do this:
-
-a. Ensure you've put data.json in the data directory
-b. GoogleMaps_Polygon$ node server.js
-c. open your browser to http://localhost:3000 and enter "11102" to test
-
-CLIENT
--------
-All the client source code is contained in the app directory. Its pretty basic. Three files:
-
--- index.html
--- script.js
--- style.css
-
-Basically draws a google map, shows some UI to accept a single zip code, communicates with the server (on localhost:3000) and draws the zip boundary
-
-SERVER
--------
-Really tiny nodeJS server. Built using express. It deserializes the contents of "data.json" (turns it into a JS object that stays in the RAM for the runtime of the server). This object also acts as a data store (almost like a cache/db)
-
-The server also provides a routes named 'zipcode', which can be used like so: 
-
-    http://localhost:3000/zipcode?11102
-
-This route will check if the zipcode requested exists in our data store. If it does it will return the boundary data for it. If not, it returns 404.
-
-
+ This will launch the build script in package.json, which will in turn browserify the whole "src" folder and dump a fresh instance of "zipPlotter.js" in the app/lib directory

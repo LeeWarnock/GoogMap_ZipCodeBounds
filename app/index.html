@@ -15,12 +15,12 @@
         <img class="loader" src="images/loader.gif"></img>
     </div>
 </body>
-<!-- 
-        placing this script tag at the bottom since 'script.js' will
-        be dynamically loading google maps script and needs the <body>
-        to be completely parsed and created into the DOM
-    -->
-<script src="script.js"></script>
+
+<!-- Import our zip plotting library -->
+<script src="lib/zipPlotter.js"></script>
+
+<!-- application script -->
+<script src="index.js"></script>
 
 <script id="autofillText">
     function autoFill(){

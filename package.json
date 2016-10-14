@@ -8,7 +8,7 @@
   },
   "devDependencies": {},
   "scripts": {
-    "build": "browserify src/main.js -o app/script.js"
+    "build": "browserify src/makeLib.js -o app/lib/zipPlotter.js"
   },
   "author": "Asim Mittal",
   "license": "ISC"

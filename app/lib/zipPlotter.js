@@ -451,89 +451,15 @@ var ZipPlotter = function (params, callback) {
 };
 
 
-
-
 module.exports = ZipPlotter;
 },{"./helpers":2}],4:[function(require,module,exports){
+/*******************************************************************
+ * This file is used to import the ZipPlotter library and add it
+ * to the global namespace (window object).
+ * When we build this js file using browserify, we effectively end
+ * up creating a single JS library for ZipPlotter 
+********************************************************************/
 
-/*********************************************************************
- * App code goes in here
- ********************************************************************/
 var ZipPlotter = require("./lr-maps/zipPlotter");
-
-// params object
-var params = {
-	initLoc: { lat: 32.7157, lng: -117.1611 },
-	domElem: document.getElementById('map'),
-	zipcodes: [],
-	apiRoute: "/zipcodes?"
-};
-
-//UI elements here  
-var button = document.getElementById("btnDo");
-var textBox = document.getElementById("txtData");
-
-//let's instantiate a new ZipPlotter object. The callback inside
-//this will basically be called once the google maps script is loaded
-new ZipPlotter(params, function (plotterObject) {
-
-	///Event handler for button click
-	button.onclick = function () {
-		var zips = getZipsFromInput(textBox.value);
-		
-		if(validateZips(zips))
-			plotterObject.update(zips);
-		else
-			alert("Invalid input. Check what you've entered again");	
-	}
-
-});
-
-/*********************************************************************
- * getZipsFromInput
- * turn the value of the text box to a list of zipcode strings
- ********************************************************************/
-function getZipsFromInput(text) {
-	var entered = text.trim().replaceAll("\n", '').replaceAll(" ", "");
-	var lstZipCodes = entered.split(',');
-	return lstZipCodes;
-}
-
-/*********************************************************************
- * validateZips
- * check if all zips inside lstZipcodes are valid (made up of digits)
- ********************************************************************/
-function validateZips(lstZipcodes) {		
-	//let's assume the list is valid
-	var isListValid = true;
-		
-	//go through each element, and ensure its valid
-	lstZipcodes.forEach(function (zipString) {
-		//if an invalid element is found, change the status
-		//of the flag
-		if (!zipString.isDigits()) {
-			isListValid = false;
-			return;
-		}
-	});
-
-	return isListValid;
-}
-
-/*********************************************************************
- * String.replaceAll
- * For a string, replace all occurrences of "search" with "replacement"
- ********************************************************************/
-String.prototype.replaceAll = function (search, replacement) {
-    return this.split(search).join(replacement);
-};
-
-/*********************************************************************
- * String.isDigits
- * Return true if all the characters in the string are digits
- *********************************************************************/
-String.prototype.isDigits = function () {
-	if (this.match(/^[0-9]+$/) != null) return true;
-	return false;
-}
+window['ZipPlotter'] = ZipPlotter;
 },{"./lr-maps/zipPlotter":3}]},{},[4]);

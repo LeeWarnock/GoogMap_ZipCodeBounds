@@ -109,6 +109,4 @@ var ZipPlotter = function (params, callback) {
 };
 
 
-
-
 module.exports = ZipPlotter;
