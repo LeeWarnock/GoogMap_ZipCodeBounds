@@ -9,12 +9,12 @@ and the server
 There is a sample application in the 'app' directory. The files are:
 
 /app
-|____ lib								
-      |____ zipPlotter.js		- This is the zipPlotter JS library
+ ---lib								
+      ---- zipPlotter.js		
     
-|____ index.html					- app HTML
-|____ index.js					- app JS, uses the library
-|____ style.css					- stylesheet
+ ---index.html					
+ ---index.js					
+ ---style.css					
 
 The application is pretty simple. It creates a zipPlotter object, and then draws zip code boundaries based on the inputs provided by the user using the HTML form.
 
