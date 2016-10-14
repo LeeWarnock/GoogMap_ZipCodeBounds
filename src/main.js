@@ -1,106 +1,81 @@
-//import our modules
-var gMap = require("./gmaps/gmap");
-var helpers = require("./helpers");
 
-//get the DOM elem where the map will be drawn
-var mapElem = document.getElementById('map');
+/*********************************************************************
+ * App code goes in here
+ ********************************************************************/
+var ZipPlotter = require("./lr-maps/zipPlotter");
 
-//global objects to track our map 
-//and our polygons
-var currentPolygons = [];
-var currentMarkers = [];
+// params object
+var params = {
+	initLoc: { lat: 32.7157, lng: -117.1611 },
+	domElem: document.getElementById('map'),
+	zipcodes: [],
+	apiRoute: "/zipcodes?"
+};
 
-//flags to toggle visibility of things
-var showMarkers = false;
-var isPolyOpacityRandom = true;
+//UI elements here  
+var button = document.getElementById("btnDo");
+var textBox = document.getElementById("txtData");
 
-//TBD - get rid of this when deploying
-var minOpacity = 15, maxOpacity = 50;
+//let's instantiate a new ZipPlotter object. The callback inside
+//this will basically be called once the google maps script is loaded
+new ZipPlotter(params, function (plotterObject) {
 
-// load the maps module - it will add the google maps script to the body
-// and bring us to the callback here
-gMap.init(mapElem, function (map) {
-	
-	//console.log("---> Loaded GMaps API")
-	
-	//Our UI elements
-	var button = document.getElementById("btnDo");
-    var textBox = document.getElementById("txtData");
-	var loader = document.getElementById("progLoader");
-	
-	///-------------------------------------------------------------------------
-	/// Button clicked
-	/// This triggers everything
-	///-------------------------------------------------------------------------
+	///Event handler for button click
 	button.onclick = function () {
-				
-		//clear anything that might have been drawn before
-		gMap.clearPolygonsOnMap(currentPolygons);
-		gMap.clearMarkersOnMap(currentMarkers);
-			
-		//let's validate what the user's entered
-        var entered = textBox.value.trim().replaceAll("\n",'').replaceAll(" ","");			//get rid of all spaces and new lines
-		var lstZipCodes = entered.split(',');												//split by commas
-								
-		if (helpers.validateZips(lstZipCodes)) {
-			
-			//show the progress loader
-			loader.show();
-			
-			//all the entered zips are valid. Let's do our thing now...
-			//GET all the zip code data from the server
-			helpers.getZipsFromServerInParts(lstZipCodes, "/zipcodes?", handleData);			
-		}
-		else {
-			alert("Dude! You need to enter valid zips. Don't be messing around now.");
-		}
-	}
-	
-	///-------------------------------------------------------------------------
-	/// handle the zipcode data returned by the server
-	///-------------------------------------------------------------------------
-	var handleData = function (data) {
-		var thesePolygons = [];
-		var theseMarkers = [];
-		var failed = [];
-
-		for (var zipStr in data) {
-
-			if (data[zipStr] != null) {	
-				//get a random opacity between 0.1 and 0.5 if the flag is true, else just use 0.5
-				//dividing by ten since the function returns integers between a certain range
-				var opacity = ((isPolyOpacityRandom) ? helpers.getRandomBetweenInts(minOpacity, maxOpacity) : maxOpacity) / 100;
-				
-				//get the zip, get the polygon for that zip, get the marker for that polygon
-				var zipData = data[zipStr];
-				var polygon = helpers.converZipToPolygon(zipStr, zipData, opacity);
-				var marker = helpers.getCustomMarker(polygon.centerCoord, zipStr);
-								
-				//push into respective arrays
-				thesePolygons.push(polygon);
-				theseMarkers.push(marker);
-			}
-			else {
-				//console.log('this zipcode', zipStr, "is", data[zipStr]);
-				failed.push(zipStr);
-			}
-		}
+		var zips = getZipsFromInput(textBox.value);
 		
-		loader.hide();
-		drawOnMap(thesePolygons, theseMarkers);
+		if(validateZips(zips))
+			plotterObject.update(zips);
+		else
+			alert("Invalid input. Check what you've entered again");	
 	}
-	
-	///-------------------------------------------------------------------------
-	/// draw the polygons and markers on the map	 
-	///-------------------------------------------------------------------------
-	
-	var drawOnMap = function(polygons, markers){
-		currentPolygons = polygons;
-		currentMarkers = markers;
-		gMap.drawPolygonsOnMap(currentPolygons,map);
-		gMap.drawMarkersOnMap(currentMarkers,map); 
-	}
-	
+
 });
 
+/*********************************************************************
+ * getZipsFromInput
+ * turn the value of the text box to a list of zipcode strings
+ ********************************************************************/
+function getZipsFromInput(text) {
+	var entered = text.trim().replaceAll("\n", '').replaceAll(" ", "");
+	var lstZipCodes = entered.split(',');
+	return lstZipCodes;
+}
 
+/*********************************************************************
+ * validateZips
+ * check if all zips inside lstZipcodes are valid (made up of digits)
+ ********************************************************************/
+function validateZips(lstZipcodes) {		
+	//let's assume the list is valid
+	var isListValid = true;
+		
+	//go through each element, and ensure its valid
+	lstZipcodes.forEach(function (zipString) {
+		//if an invalid element is found, change the status
+		//of the flag
+		if (!zipString.isDigits()) {
+			isListValid = false;
+			return;
+		}
+	});
+
+	return isListValid;
+}
+
+/*********************************************************************
+ * String.replaceAll
+ * For a string, replace all occurrences of "search" with "replacement"
+ ********************************************************************/
+String.prototype.replaceAll = function (search, replacement) {
+    return this.split(search).join(replacement);
+};
+
+/*********************************************************************
+ * String.isDigits
+ * Return true if all the characters in the string are digits
+ *********************************************************************/
+String.prototype.isDigits = function () {
+	if (this.match(/^[0-9]+$/) != null) return true;
+	return false;
+}

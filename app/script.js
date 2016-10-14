@@ -47,61 +47,218 @@ CustomMarker.prototype.onRemove = function(){
 
 module.exports = CustomMarker;
 },{}],2:[function(require,module,exports){
-/**********************************************************
- * This module does the following:
- * - adds a script tag to the DOM that loads the maps API
- * - invokes the callback after script load
- * - passes the global 'map' object to that callback
-**********************************************************/
-var urlGoogleMapsApi = "https://maps.googleapis.com/maps/api/js?key=AIzaSyA3Oa5uLCltGJkIyF5EVmUSQrz7-ujGdQA&callback=initMap";
-
-// for some reason, google Maps API wants you to have this ugly
-// function titled 'initMap()' sitting in your global namespace
-// otherwise it keeps throwing an error.
-
-// So I'm just inserting one here before I actually load the API
-// Feel like an idiot doing this, but here goes...
-var dumbInitFuncForMapsAPI = "function initMap(){}";
-var lameScriptTag = document.createElement("script");
-lameScriptTag.innerHTML = dumbInitFuncForMapsAPI;
-document.body.appendChild(lameScriptTag);
-
-//Let's say the init location of the map was San Diego
-//TBD - this will not exist in the final version
-var initLocation = {
-	lat: 32.7157
-	, lng: -117.1611
-}
-
 module.exports = {
 	
-	///--------------------------------------------------------------
-	/// this method loads the Google Maps API using script
-	/// injection. Once that API loads, it invokes the callback
-	///--------------------------------------------------------------
-	init: function (mapElem, callback) {		
+	///---------------------------------------------------------------------
+	/// returns True if the google.maps namespace exists
+	///---------------------------------------------------------------------
+	isGoogleMapsApiLoaded: function () {
+		if (typeof (google) == "undefined") return false;
+		return true;
+	},
+
+	///---------------------------------------------------------------------
+	/// injects the google maps library (JS file) into the DOM. Also injects
+	/// the initMap() function that is needed to get the script going
+	///---------------------------------------------------------------------
+	loadGoogleMapsApi: function (callback_loadComplete) {
+	
+		//this is the URL to the API
+		var googleMapsApiUrl = "https://maps.googleapis.com/maps/api/js?key=AIzaSyA3Oa5uLCltGJkIyF5EVmUSQrz7-ujGdQA&callback=initMap";
+	
+		//once loaded, if the API doesn't find a function named "initMap", it yells
+		//by throwing an error. We don't want that, so let's make sure this silly
+		//function exists in our code. Inject a script into the body
+		var lameScriptTag = document.createElement("script");
+		lameScriptTag.innerHTML = "function initMap(){}";
+		document.body.appendChild(lameScriptTag);
+	
+		//now let's load the google maps library. First create a script tag
+		var googleMapsScriptTag = document.createElement("script");
+		googleMapsScriptTag.src = googleMapsApiUrl;
+		googleMapsScriptTag.type = "text/javascript";
+		googleMapsScriptTag.onload = callback_loadComplete;
+	
+		//now inject that script into the body
+		document.body.appendChild(googleMapsScriptTag);
+	
+		//as soon as the script is fetched and loaded, the callback_loadComplete function is called
+	},
+	
+	///-------------------------------------------------------------------------
+	/// helper function to perform async Http GET calls
+	/// calls the URL, then invokes the callback once the
+	/// response is ready to be handled
+	/// fakedelay - in case you want it to delay the response (for UI magic!!!)
+	///-------------------------------------------------------------------------
+	httpGetAsync: function (url, callback, fakedelay) {
+
+		if (!fakedelay) fakedelay = 0;
 		
-		//<script> tag params
-		var scriptTag = document.createElement("script");
-		scriptTag.src = urlGoogleMapsApi;
-		scriptTag.type = 'text/javascript';
+		//create a GET request, assign callback 
+		var request = new XMLHttpRequest();
+		request.open("GET", url, true);
+
+        request.onreadystatechange = function () {
+			if (request.readyState == 4) {
+				
+				//type checking for fakedelay, make sure its a number 
+				if (typeof (fakedelay) == typeof (1)) {
+					setTimeout(function () {
+						callback(request);
+					}, fakedelay);
+				}
+				else callback(request);
+			}
+		}
+               
+		//ready to send it!
+		request.send(null);
+	},
+	
+	///-------------------------------------------------------------------------
+	/// Get zip code data from the server for all the zips in 'lstZips'
+	/// in parts. Since there are limitations on how long the URL can be for
+	/// HTTP requests, its likely that we'll have to handle this in parts
+	/// if the user wants to request data for 2000 zipcodes, some zips may 
+	/// get missed because of url truncation
+	///
+	/// To address this, we'll split the list of zips into smaller, manageble 
+	/// chunks. Each chunk (which is a subset of the large list) will turn
+	/// into a url. These URL will be requested one by one. And when all the requests
+	/// have been served, we'll invoke the 'callback'
+	///-------------------------------------------------------------------------
+	getZipsFromServerInParts: function (lstZips, route, callback) {
 		
-		//once its loaded, do this
-		scriptTag.onload = function () {			
-			//let's init our map object and draw something
-			//in the DOM element with id 'map'
-			var map = new google.maps.Map(mapElem, {
-				zoom: 12
-				, center: initLocation
-				, mapTypeId: 'terrain'
+		if(lstZips.length == 0) callback(null);
+		
+		//lstZips might be extremely large, so we'll split it into smaller chunk
+		//sized lists. For each chunk sized list, we'll form a url and get the data 
+		//from the server using the route specified		
+		var chunkSize = 80;
+		var numChunks = Math.floor(lstZips.length / chunkSize);
+		if (lstZips.length % chunkSize > 0) numChunks++;
+
+		var chunkSizedZips = [];
+				
+		//now we need to create as many lists as indicated in 'numChunks'
+		for (var i = 0; i < numChunks; i++) {
+			var startChunkAt = i * chunkSize;
+			var endChunkAt = startChunkAt + chunkSize;
+			chunkSizedZips.push(lstZips.slice(startChunkAt, endChunkAt));
+		}
+		
+		
+		//now we have split our larger list in small manageable chunk sizes
+		//all these smaller lists contain zip codes, we'll now create URLs 
+		//for each smaller list using the route provided as argument
+		var urls = [];
+
+		chunkSizedZips.forEach(function (chunk) {
+			urls.push('' + route + chunk.join("&"));
+		});
+				
+		//now we have all the urls we need to call in our 'urls' list
+		//let's call them one by one. Each call will return a response
+		//which will also have to be collated into one big response
+		
+		var responses = [];
+		var GET = this.httpGetAsync;
+		var counter = 0;
+		
+		//call each url, store its response in the list. When the list
+		//has as many responses as urls, we know we're done. Invoke the callback
+		urls.forEach(function (url) {
+			GET(url, function (req) {
+				//get this URL
+				var resp = null;
+				if (req.status == 200) {
+					resp = JSON.parse(req.responseText);
+					counter++;
+				}
+				
+				//save the response in 'responses'
+				responses.push(resp);
+				
+				//looks like we have no more URLs to fetch, invoke callback												
+				if (responses.length == urls.length) { 
+					//now every response object (in 'responses') is basically a collection
+					//of key value pairs. We want to combine all this into a single object
+					
+					var bigObject_allZipData = {};
+					responses.forEach(function (eachResp) {
+						for (var zipcode in eachResp) {
+							var dataForZip = eachResp[zipcode];
+							bigObject_allZipData[zipcode] = dataForZip;
+						}
+					});
+					
+					//now throw it back to the callback
+					callback(bigObject_allZipData);
+				}
 			});
-			
-			//send the map object
-			callback(map);
-		};
+		});
+
+	},
+	
+	///-------------------------------------------------------------------------
+	/// Convert a string of format "lat1,lng1/lat2,lng2/lat3,lng3..."
+	/// to a google polygon object that can be drawn on the map. Each coordString
+	/// must represent a single polygon
+	///-------------------------------------------------------------------------
+	converZipToPolygon: function (zipStr, zipData, opacity) {
 		
-		//add the <script> tag
-		document.body.appendChild(scriptTag);
+		if(!google.maps) throw "Google Maps API not found!";
+		
+		//the coordStr data is delimited by "/" character. when we split
+		//we get ["lat1,lng1","lat2,lng2",...]
+		var coords = [];
+		var coordStr = zipData.coords[0];
+		var arrPairs = coordStr.split("/");
+		var bounds = new google.maps.LatLngBounds();
+		
+		//Now take that list and turn everything into a json object
+		//push that json object into the array 'coords'
+		arrPairs.forEach(function (latLngString) {
+			
+			//string to {lat:.., lng:...}
+			var lat = parseFloat(latLngString.split(",")[0]);
+			var lng = parseFloat(latLngString.split(",")[1]);
+			coords.push({'lat': lat, 'lng': lng});			
+			
+			//since we're using the bounds object to track the region
+			//this polygon spreads over, let's add this point to our
+			//bounds object as well
+			bounds.extend(new google.maps.LatLng(lat,lng));
+		});
+		
+		//get the center of this region defined by the polygon
+		var regionCenter = {lat: bounds.getCenter().lat(), lng: bounds.getCenter().lng()};
+		
+		//turn that array 'coords' into a google polygon
+		var polygon = new google.maps.Polygon({
+            paths: coords
+            , strokeColor: '#ff0000'
+            , strokeOpacity: 0.8
+            , strokeWeight: 2
+            , fillColor: '#ff0000'
+            , fillOpacity: opacity
+			, centerCoord: regionCenter
+			, tag: zipStr
+			, bounds: bounds
+        });
+		
+		return polygon;
+	},
+	
+	///-------------------------------------------------------------------------
+	/// Create a google.maps.Marker from the coordinates and the label
+	/// provided in the arguments
+	///-------------------------------------------------------------------------	
+	getCustomMarker: function(coord,label){
+		var CustomMarker = require("./customMarker");
+		var cusMark = new CustomMarker(coord,label);
+		return cusMark;		
 	},
 	
 	///--------------------------------------------------------------
@@ -171,13 +328,197 @@ module.exports = {
 		}
 	},
 
+	///--------------------------------------------------------------
+	/// draw the markers on the map
+	///--------------------------------------------------------------
 	drawMarkersOnMap: function (markers, map) {
 		markers.forEach(function (eachMarker) {
 			eachMarker.setMap(map);
 		});
+	},
+};
+
+
+},{"./customMarker":1}],3:[function(require,module,exports){
+///---------------------------------------------------------------------
+/// validate the arguments that were passed to the plotter object
+
+var helper = require("./helpers");
+
+var props = ['initLoc', 'domElem', 'zipcodes', 'apiRoute'];
+var isParamsValid = function (params) {
+	var keys = Object.keys(params);
+	for (var i in props) {
+		if (!params.hasOwnProperty(keys[i])) return false;
 	}
+	return true;
 }
-},{}],3:[function(require,module,exports){
+
+/******************************************************************************
+ * ZipPlotter - a class that plots various zip codes on a google map
+ * Parameters:
+ * 	--- params: 
+ * 		This is an object that must contain the following fields
+ *	--------> initLoc 	: the initial location of the map
+ *	--------> zipcodes	: the list of zipcodes that need to be fetched
+ *	--------> domElem 	: the DOM element where the map needs to be drawn
+ *  --------> apiRoute	: the API route to get the zip code data from
+ * 
+ * --- callback: 
+ * 		This is a function that will be called when the map is loaded
+ * 		the callback will also receive a "map" object as a parameter
+ ******************************************************************************/
+var ZipPlotter = function (params, callback) {
+
+	var thisObj = this;
+	var zipcodes, apiRoute, map;
+	var polygons = [];
+	var markers = [];
+	var map = null;
+	
+	///---------------------------------------------------------------------
+	/// this will initialize a map, configure the object based on the params
+	/// provided and then call the callback
+	///---------------------------------------------------------------------
+	var init = function () {
+		if (isParamsValid(params)) {
+			
+			//draw the map with the initial location
+			map = new google.maps.Map(params.domElem, {
+				zoom: 12,
+				center: params.initLoc,
+				mapTypeId: 'terrain',
+			});
+			
+			//save some of these params, we might need them later
+			zipcodes = params.zipcodes;
+			apiRoute = params.apiRoute;
+			
+			//pull all the data from the data API
+			helper.getZipsFromServerInParts(zipcodes, apiRoute, draw);
+		}
+		else throw "You're missing one or more parameters to create this object"
+	}
+	
+	///---------------------------------------------------------------------
+	/// clear any existing polygons on the map
+	///---------------------------------------------------------------------
+	var clear = function () {
+		helper.clearPolygonsOnMap(polygons);
+		helper.clearMarkersOnMap(markers);
+		polygons = [];
+		markers = [];
+	}
+	
+	///---------------------------------------------------------------------
+	/// draw all polygons on the map
+	///---------------------------------------------------------------------
+	var draw = function (allData) {
+
+		if (allData != null) {
+			clear();
+				
+			//now we have all the boundary data from the server
+			//let's get a polygon for each of the zipcodes in the data
+			for (var zipStr in allData) {
+				if (allData[zipStr] != null) {
+					var zipData = allData[zipStr];
+					var polygon = helper.converZipToPolygon(zipStr, zipData, 0.6);
+					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr);
+					polygons.push(polygon);
+					markers.push(marker);
+				}
+			}
+
+			helper.drawPolygonsOnMap(polygons, map);
+			helper.drawMarkersOnMap(markers, map);
+		}
+		
+		callback(thisObj);
+	}
+	
+	///---------------------------------------------------------------------
+	/// update the data (zipcodes) and redraw the maps
+	///---------------------------------------------------------------------
+	this.update = function (newZips) {
+		zipcodes = newZips;
+		helper.getZipsFromServerInParts(zipcodes, apiRoute, draw);
+	}
+	
+	//is the google maps API loaded, start init. If not, load it
+	//and then start init
+	if (helper.isGoogleMapsApiLoaded()) init(); else helper.loadGoogleMapsApi(init);
+};
+
+
+
+
+module.exports = ZipPlotter;
+},{"./helpers":2}],4:[function(require,module,exports){
+
+/*********************************************************************
+ * App code goes in here
+ ********************************************************************/
+var ZipPlotter = require("./lr-maps/zipPlotter");
+
+// params object
+var params = {
+	initLoc: { lat: 32.7157, lng: -117.1611 },
+	domElem: document.getElementById('map'),
+	zipcodes: [],
+	apiRoute: "/zipcodes?"
+};
+
+//UI elements here  
+var button = document.getElementById("btnDo");
+var textBox = document.getElementById("txtData");
+
+//let's instantiate a new ZipPlotter object. The callback inside
+//this will basically be called once the google maps script is loaded
+new ZipPlotter(params, function (plotterObject) {
+
+	///Event handler for button click
+	button.onclick = function () {
+		var zips = getZipsFromInput(textBox.value);
+		
+		if(validateZips(zips))
+			plotterObject.update(zips);
+		else
+			alert("Invalid input. Check what you've entered again");	
+	}
+
+});
+
+/*********************************************************************
+ * getZipsFromInput
+ * turn the value of the text box to a list of zipcode strings
+ ********************************************************************/
+function getZipsFromInput(text) {
+	var entered = text.trim().replaceAll("\n", '').replaceAll(" ", "");
+	var lstZipCodes = entered.split(',');
+	return lstZipCodes;
+}
+
+/*********************************************************************
+ * validateZips
+ * check if all zips inside lstZipcodes are valid (made up of digits)
+ ********************************************************************/
+function validateZips(lstZipcodes) {		
+	//let's assume the list is valid
+	var isListValid = true;
+		
+	//go through each element, and ensure its valid
+	lstZipcodes.forEach(function (zipString) {
+		//if an invalid element is found, change the status
+		//of the flag
+		if (!zipString.isDigits()) {
+			isListValid = false;
+			return;
+		}
+	});
+
+	return isListValid;
+}
 
 /*********************************************************************
  * String.replaceAll
@@ -195,342 +536,4 @@ String.prototype.isDigits = function () {
 	if (this.match(/^[0-9]+$/) != null) return true;
 	return false;
 }
-
-/*********************************************************************
- * HTMLElement.show
- * set the style.display to inline
- *********************************************************************/
-HTMLElement.prototype.show = function () {
-	this.style.display = 'inline';
-}
-
-/*********************************************************************
- * HTMLElement.hide 
- * Set the style.display to none
- *********************************************************************/
-HTMLElement.prototype.hide = function () {
-	this.style.display = 'none';
-}
-
-/*********************************************************************
- * App specific helpers
-*********************************************************************/
-module.exports = {
-	
-	
-	getRandomBetweenInts: function(min,max){
-		return Math.floor(Math.random()*max) + min;
-	},
-	
-	///-------------------------------------------------------------------------
-	/// validate a given list of zipcodes
-	/// each element in the list must be a string composed of
-	/// numbers only. Return True if all elements are valid
-	///-------------------------------------------------------------------------
-	validateZips: function (lstZipcodes) {
-		
-		//let's assume the list is valid
-		var isListValid = true;
-		
-		//go through each element, and ensure its valid
-		lstZipcodes.forEach(function (zipString) {
-			//if an invalid element is found, change the status
-			//of the flag
-			if (!zipString.isDigits()) {
-				isListValid = false;
-				return;
-			}
-		});
-
-		return isListValid;
-	},
-	
-	///-------------------------------------------------------------------------
-	/// helper function to perform async Http GET calls
-	/// calls the URL, then invokes the callback once the
-	/// response is ready to be handled
-	/// fakedelay - in case you want it to delay the response (for UI magic!!!)
-	///-------------------------------------------------------------------------
-	httpGetAsync: function (url, callback, fakedelay) {
-		
-		if(!fakedelay) fakedelay = 0;
-		
-		//create a GET request, assign callback 
-		var request = new XMLHttpRequest();
-		request.open("GET", url, true);
-		
-        request.onreadystatechange = function () {
-			if (request.readyState == 4) {
-				
-				//type checking for fakedelay, make sure its a number 
-				if (typeof (fakedelay) == typeof (1)) {
-					setTimeout(function () {
-						callback(request);
-					}, fakedelay);
-				}
-				else callback(request);
-			}
-		}
-               
-		//ready to send it!
-		request.send(null);
-	},
-	
-	///-------------------------------------------------------------------------
-	/// Get zip code data from the server for all the zips in 'lstZips'
-	/// in parts. Since there are limitations on how long the URL can be for
-	/// HTTP requests, its likely that we'll have to handle this in parts
-	/// if the user wants to request data for 2000 zipcodes, some zips may 
-	/// get missed because of url truncation
-	///
-	/// To address this, we'll split the list of zips into smaller, manageble 
-	/// chunks. Each chunk (which is a subset of the large list) will turn
-	/// into a url. These URL will be requested one by one. And when all the requests
-	/// have been served, we'll invoke the 'callback'
-	///-------------------------------------------------------------------------
-	getZipsFromServerInParts: function(lstZips, route, callback){
-		
-		console.log("---> total number of zips",lstZips.length);
-		
-		//lstZips might be extremely large, so we'll split it into smaller chunk
-		//sized lists. For each chunk sized list, we'll form a url and get the data 
-		//from the server using the route specified		
-		var chunkSize = 80;
-		var numChunks = Math.floor(lstZips.length / chunkSize);
-		if(lstZips.length % chunkSize > 0) numChunks++;
-		
-		var chunkSizedZips = [];
-				
-		//now we need to create as many lists as indicated in 'numChunks'
-		for(var i = 0; i < numChunks; i++){
-			var startChunkAt = i * chunkSize;
-			var endChunkAt = startChunkAt + chunkSize;
-			chunkSizedZips.push(lstZips.slice(startChunkAt,endChunkAt));
-		}
-		
-		
-		//now we have split our larger list in small manageable chunk sizes
-		//all these smaller lists contain zip codes, we'll now create URLs 
-		//for each smaller list using the route provided as argument
-		var urls = [];
-		
-		chunkSizedZips.forEach(function(chunk){
-			urls.push(''+route + chunk.join("&"));
-		});
-				
-		//now we have all the urls we need to call in our 'urls' list
-		//let's call them one by one. Each call will return a response
-		//which will also have to be collated into one big response
-		
-		var responses = [];
-		var GET = this.httpGetAsync;
-		var counter = 0;
-		
-		//call each url, store its response in the list. When the list
-		//has as many responses as urls, we know we're done. Invoke the callback
-		urls.forEach(function(url){
-			GET(url,function(req){
-				//get this URL
-				var resp = null;
-				if(req.status == 200){
-					resp = JSON.parse(req.responseText);
-					counter++;					
-				}
-				
-				//save the response in 'responses'
-				responses.push(resp);
-				
-				//looks like we have no more URLs to fetch, invoke callback												
-				if(responses.length == urls.length){ 
-					//now every response object (in 'responses') is basically a collection
-					//of key value pairs. We want to combine all this into a single object
-					
-					var bigObject_allZipData = {};					
-					responses.forEach(function(eachResp){
-						for(var zipcode in eachResp){							
-							var dataForZip = eachResp[zipcode];
-							bigObject_allZipData[zipcode] = dataForZip;
-						}
-					});
-					
-					//now throw it back to the callback
-					callback(bigObject_allZipData);
-				}
-			});
-		});
-			 
-	},
-
-	
-
-	///-------------------------------------------------------------------------
-	/// Convert a string of format "lat1,lng1/lat2,lng2/lat3,lng3..."
-	/// to a google polygon object that can be drawn on the map. Each coordString
-	/// must represent a single polygon
-	///-------------------------------------------------------------------------
-	converZipToPolygon: function (zipStr, zipData, opacity) {
-		
-		if(!google.maps) throw "Google Maps API not found!";
-		
-		//the coordStr data is delimited by "/" character. when we split
-		//we get ["lat1,lng1","lat2,lng2",...]
-		var coords = [];
-		var coordStr = zipData.coords[0];
-		var arrPairs = coordStr.split("/");
-		var bounds = new google.maps.LatLngBounds();
-		
-		//Now take that list and turn everything into a json object
-		//push that json object into the array 'coords'
-		arrPairs.forEach(function (latLngString) {
-			
-			//string to {lat:.., lng:...}
-			var lat = parseFloat(latLngString.split(",")[0]);
-			var lng = parseFloat(latLngString.split(",")[1]);
-			coords.push({'lat': lat, 'lng': lng});			
-			
-			//since we're using the bounds object to track the region
-			//this polygon spreads over, let's add this point to our
-			//bounds object as well
-			bounds.extend(new google.maps.LatLng(lat,lng));
-		});
-		
-		//get the center of this region defined by the polygon
-		var regionCenter = {lat: bounds.getCenter().lat(), lng: bounds.getCenter().lng()};
-		
-		//turn that array 'coords' into a google polygon
-		var polygon = new google.maps.Polygon({
-            paths: coords
-            , strokeColor: '#ff0000'
-            , strokeOpacity: 0.8
-            , strokeWeight: 2
-            , fillColor: '#ff0000'
-            , fillOpacity: opacity
-			, centerCoord: regionCenter
-			, tag: zipStr
-			, bounds: bounds
-        });
-		
-		return polygon;
-	},
-	
-	///-------------------------------------------------------------------------
-	/// Create a google.maps.Marker from the coordinates and the label
-	/// provided in the arguments
-	///-------------------------------------------------------------------------	
-	getCustomMarker: function(coord,label){
-		var CustomMarker = require("./gmaps/customMarker");
-		var cusMark = new CustomMarker(coord,label);
-		return cusMark;		
-	}
-}
-
-
-},{"./gmaps/customMarker":1}],4:[function(require,module,exports){
-//import our modules
-var gMap = require("./gmaps/gmap");
-var helpers = require("./helpers");
-
-//get the DOM elem where the map will be drawn
-var mapElem = document.getElementById('map');
-
-//global objects to track our map 
-//and our polygons
-var currentPolygons = [];
-var currentMarkers = [];
-
-//flags to toggle visibility of things
-var showMarkers = false;
-var isPolyOpacityRandom = true;
-
-//TBD - get rid of this when deploying
-var minOpacity = 15, maxOpacity = 50;
-
-// load the maps module - it will add the google maps script to the body
-// and bring us to the callback here
-gMap.init(mapElem, function (map) {
-	
-	//console.log("---> Loaded GMaps API")
-	
-	//Our UI elements
-	var button = document.getElementById("btnDo");
-    var textBox = document.getElementById("txtData");
-	var loader = document.getElementById("progLoader");
-	
-	///-------------------------------------------------------------------------
-	/// Button clicked
-	/// This triggers everything
-	///-------------------------------------------------------------------------
-	button.onclick = function () {
-				
-		//clear anything that might have been drawn before
-		gMap.clearPolygonsOnMap(currentPolygons);
-		gMap.clearMarkersOnMap(currentMarkers);
-			
-		//let's validate what the user's entered
-        var entered = textBox.value.trim().replaceAll("\n",'').replaceAll(" ","");			//get rid of all spaces and new lines
-		var lstZipCodes = entered.split(',');												//split by commas
-								
-		if (helpers.validateZips(lstZipCodes)) {
-			
-			//show the progress loader
-			loader.show();
-			
-			//all the entered zips are valid. Let's do our thing now...
-			//GET all the zip code data from the server
-			helpers.getZipsFromServerInParts(lstZipCodes, "/zipcodes?", handleData);			
-		}
-		else {
-			alert("Dude! You need to enter valid zips. Don't be messing around now.");
-		}
-	}
-	
-	///-------------------------------------------------------------------------
-	/// handle the zipcode data returned by the server
-	///-------------------------------------------------------------------------
-	var handleData = function (data) {
-		var thesePolygons = [];
-		var theseMarkers = [];
-		var failed = [];
-
-		for (var zipStr in data) {
-
-			if (data[zipStr] != null) {	
-				//get a random opacity between 0.1 and 0.5 if the flag is true, else just use 0.5
-				//dividing by ten since the function returns integers between a certain range
-				var opacity = ((isPolyOpacityRandom) ? helpers.getRandomBetweenInts(minOpacity, maxOpacity) : maxOpacity) / 100;
-				
-				//get the zip, get the polygon for that zip, get the marker for that polygon
-				var zipData = data[zipStr];
-				var polygon = helpers.converZipToPolygon(zipStr, zipData, opacity);
-				var marker = helpers.getCustomMarker(polygon.centerCoord, zipStr);
-								
-				//push into respective arrays
-				thesePolygons.push(polygon);
-				theseMarkers.push(marker);
-			}
-			else {
-				//console.log('this zipcode', zipStr, "is", data[zipStr]);
-				failed.push(zipStr);
-			}
-		}
-		
-		loader.hide();
-		drawOnMap(thesePolygons, theseMarkers);
-	}
-	
-	///-------------------------------------------------------------------------
-	/// draw the polygons and markers on the map	 
-	///-------------------------------------------------------------------------
-	
-	var drawOnMap = function(polygons, markers){
-		currentPolygons = polygons;
-		currentMarkers = markers;
-		gMap.drawPolygonsOnMap(currentPolygons,map);
-		gMap.drawMarkersOnMap(currentMarkers,map); 
-	}
-	
-});
-
-
-
-},{"./gmaps/gmap":2,"./helpers":3}]},{},[4]);
+},{"./lr-maps/zipPlotter":3}]},{},[4]);
