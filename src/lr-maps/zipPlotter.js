@@ -3,7 +3,7 @@
 
 var helper = require("./helpers");
 
-var props = ['initLoc', 'domElem', 'zipcodes', 'apiRoute'];
+var props = ['initLoc', 'domElem', 'zipcodes', 'apiRoute', 'colorNormal','colorHighlight'];
 var isParamsValid = function (params) {
 	var keys = Object.keys(params);
 	for (var i in props) {
@@ -35,7 +35,9 @@ var ZipPlotter = function (params, callback) {
 	var initLoc,
 		zipcodes,
 		apiRoute,
-		map;
+		mapDomElem,
+		colorNormal,
+		colorHighlighted;
 		
 	//lists to store Polygons and Markers that might be drawn on the map
 	var polygons = [], markers = [];
@@ -52,8 +54,6 @@ var ZipPlotter = function (params, callback) {
 	//the zoom level below which the marker labels are hidden
 	var zoomLevelThreshold = 12;
 	
-	var polygonFillColor
-	
 	///---------------------------------------------------------------------
 	/// this will initialize a map, configure the object based on the params
 	/// provided and then call the callback
@@ -63,9 +63,12 @@ var ZipPlotter = function (params, callback) {
 			
 			//save the initial location of the map
 			initLoc = params.initLoc;
+			mapDomElem = params.domElem;
+			colorNormal = params.colorNormal;
+			colorHighlighted = params.colorHighlighted;
 			
 			//draw the map with the initial location
-			map = new google.maps.Map(params.domElem, {
+			map = new google.maps.Map(mapDomElem, {
 				zoom: 12,
 				center: initLoc,
 				mapTypeId: 'terrain',
@@ -107,7 +110,11 @@ var ZipPlotter = function (params, callback) {
 	///---------------------------------------------------------------------
 	var draw = function (allData) {
 
-		console.log("draw called")
+		var mouseEvents = {
+			click: thisObj.zipcode_click,
+			mouseover: zipcode_mouseover,
+			mouseout: zipcode_mouseout
+		};
 
 		if (allData != null) {
 			clear();
@@ -118,10 +125,14 @@ var ZipPlotter = function (params, callback) {
 			for (var zipStr in allData) {
 				if (allData[zipStr] != null) {
 					var zipData = allData[zipStr];
-					polygon = helper.converZipToPolygon(zipStr, zipData, 0.6,thisObj.polygon_clickHandler);					
-					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr);
+					polygon = helper.converZipToPolygon(zipStr, zipData, 0.6,mouseEvents);
 					
+					//configure appearance
+					polygon.strokeColor = colorNormal;
+					polygon.fillColor = colorNormal;
 					polygons.push(polygon);
+									
+					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr);
 					markers.push(marker);
 				}
 			}
@@ -133,8 +144,32 @@ var ZipPlotter = function (params, callback) {
 		callback(thisObj);
 	}
 	
-	this.polygon_clickHandler = function(polygon,zipcode){
-		console.log(zipcode,polygon);
+	///---------------------------------------------------------------------
+	/// these methods are called when a polygon (drawn on the map) is clicked,
+	/// hovered over or hovered out of. The app developer can override these
+	///---------------------------------------------------------------------
+	this.zipcode_click = function(polygon,zipcode){
+		console.log('clicked',zipcode);
+	}
+	
+	var zipcode_mouseover = function(polygon,zipcode){
+		polygon.strokeColor = colorHighlighted;
+		polygon.fillColor = colorHighlighted;
+		redrawPolygon(polygon);
+	}
+	
+	var zipcode_mouseout = function(polygon,zipcode){
+		polygon.strokeColor = colorNormal;
+		polygon.fillColor = colorNormal;
+		redrawPolygon(polygon);
+	}
+	
+	///---------------------------------------------------------------------
+	/// update the data (zipcodes) and redraw the maps
+	///---------------------------------------------------------------------
+	var redrawPolygon = function(polygon){
+		polygon.setMap(null); 
+		polygon.setMap(map);
 	}
 	
 	///---------------------------------------------------------------------

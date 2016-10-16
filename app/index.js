@@ -9,7 +9,9 @@
 		initLoc: { lat: 32.7157, lng: -117.1611 },
 		domElem: document.getElementById('map'),
 		zipcodes: [],
-		apiRoute: "/zipcodes?"
+		apiRoute: "/zipcodes?",
+		colorNormal: "#9b42f4",
+		colorHighlighted:"#ed8afc"
 	};
 
 	//UI elements here  
@@ -28,6 +30,11 @@
 				plotterObject.update(zips);
 			else
 				alert("Invalid input. Check what you've entered again");
+		}
+		
+		plotterObject.polygon_clickHandler = function(polygon,zipcode){
+			polygon.fillColor = "#00ff00";
+			console.log("hahaha")
 		}
 
 	});

@@ -157,7 +157,7 @@ module.exports = {
 	/// to a google polygon object that can be drawn on the map. Each coordString
 	/// must represent a single polygon
 	///-------------------------------------------------------------------------
-	converZipToPolygon: function (zipStr, zipData, opacity, clickHandler) {
+	converZipToPolygon: function (zipStr, zipData, opacity, callbacks) {
 		
 		if(!google.maps) throw "Google Maps API not found!";
 		
@@ -199,13 +199,29 @@ module.exports = {
 			, bounds: bounds
         });
 		
-		//attach a click handler for each polygon. This is a nice hack to
+		//attach a mouse events for each polygon. This is a nice hack to
 		//give me access to the polygon inside this event handler
 		google.maps.event.addListener(polygon, 'click', function(){			
 			var thisPoly = this;
 			var zipcode = thisPoly.tag;			
-			if(typeof(clickHandler) == typeof(function(){})){
-				clickHandler(thisPoly,zipcode);
+			if(typeof(callbacks.click) == typeof(function(){})){
+				callbacks.click(thisPoly,zipcode);
+			}
+		});
+		
+		google.maps.event.addListener(polygon,'mouseover',function(){
+			var thisPoly = this;
+			var zipcode = thisPoly.tag;
+			if(typeof(callbacks.mouseover) == typeof(function(){})){
+				callbacks.mouseover(thisPoly,zipcode);
+			}
+		});
+		
+		google.maps.event.addListener(polygon,'mouseout',function(){
+			var thisPoly = this;
+			var zipcode = thisPoly.tag;
+			if(typeof(callbacks.mouseout) == typeof(function(){})){
+				callbacks.mouseout(thisPoly,zipcode);
 			}
 		});
 		
