@@ -32,9 +32,8 @@
 				alert("Invalid input. Check what you've entered again");
 		}
 		
-		plotterObject.polygon_clickHandler = function(polygon,zipcode){
-			polygon.fillColor = "#00ff00";
-			console.log("hahaha")
+		plotterObject.zipcode_click = function(polygon,zipcode){
+			console.log('clicked',zipcode);
 		}
 
 	});

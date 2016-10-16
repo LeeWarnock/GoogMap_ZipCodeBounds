@@ -149,7 +149,7 @@ var ZipPlotter = function (params, callback) {
 	/// hovered over or hovered out of. The app developer can override these
 	///---------------------------------------------------------------------
 	this.zipcode_click = function(polygon,zipcode){
-		console.log('clicked',zipcode);
+		//Override this in the app
 	}
 	
 	var zipcode_mouseover = function(polygon,zipcode){
