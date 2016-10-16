@@ -1,6 +1,6 @@
 ZIP PLOTTER LIBRARY
 ---------------------
-![Alt text](screenshot.png)
+![Alt text](screenshot.gif)
 This is the source code for a JS library that will allow you to plot zip code boundaries
 on a google map. There are three main components that you must consider - the application, the zipPlotter library
 and the server
