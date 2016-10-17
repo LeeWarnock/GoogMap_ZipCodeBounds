@@ -33,6 +33,7 @@
 				alert("Invalid input. Check what you've entered again");
 		}
 		
+		///Handle click on a polygon
 		plotterObject.zipcode_click = function(polygon,zipcode){
 			console.log('clicked',zipcode);
 		}
