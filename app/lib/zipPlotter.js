@@ -565,10 +565,7 @@ var ZipPlotter = function (params, callback) {
 	/// mouseover handler for polygon
 	///---------------------------------------------------------------------
 	var zipcode_mouseover = function (polygon, zipcode) {
-		polygon.strokeWeight = 4;
-		polygon.fillColor = colorHighlighted;
-		redrawPolygon(polygon);
-
+		
 		if (info == null) {
 			showInfoWindow(polygon);
 		}
@@ -576,6 +573,10 @@ var ZipPlotter = function (params, callback) {
 			info.close();
 			showInfoWindow(polygon);
 		}
+		
+		polygon.strokeWeight = 4;
+		polygon.fillColor = colorHighlighted;
+		redrawPolygon(polygon);
 	}
 	
 	///---------------------------------------------------------------------

@@ -11,7 +11,7 @@
 		zipcodes: [],
 		apiRoute: "/zipcodes?",
 		colorNormal: "#9b42f4",
-		colorHighlighted:"#ff00ff",
+		colorHighlighted: "#ff00ff",
 		infoResolver: getTooltipHtml		//to turn off tooltips, simply set this param to null
 	};
 
@@ -34,8 +34,8 @@
 		}
 		
 		///Handle click on a polygon
-		plotterObject.zipcode_click = function(polygon,zipcode){
-			console.log('clicked',zipcode);
+		plotterObject.zipcode_click = function (polygon, zipcode) {
+			console.log('clicked', zipcode);
 		}
 
 	});
@@ -44,16 +44,17 @@
 	 * getTooltipHtml
 	 * turn the zipcode data into appropriate tooltip HTML
 	 ********************************************************************/
-	 function getTooltipHtml(zipcode, zipData){
-		var htmlTemplate =  
-		"<div> \
+	function getTooltipHtml(zipcode, zipData) {
+		
+		var htmlTemplate =
+			"<div> \
 			<center> \
 				This zipcode is : <a href='#'>{zipcode}</a> \
 			</center> \
 		</div>"	 ;
-		
-		return htmlTemplate.replace("{zipcode}",zipcode);
-	 }
+
+		return htmlTemplate.replace("{zipcode}", zipcode);
+	}
 	 
 	/*********************************************************************
 	 * getZipsFromInput
