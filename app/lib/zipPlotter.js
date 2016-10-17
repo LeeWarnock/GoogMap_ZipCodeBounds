@@ -1,10 +1,11 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 if (!google.maps) throw "Ensure that the Google Maps API has been loaded before using this module";
 
-var CustomMarker = function (coords, label) {
+var CustomMarker = function (coords, label, textSize) {
 	this._div = null;
 	this._coords = new google.maps.LatLng(coords.lat,coords.lng);
 	this._text = label;
+	this._textSize = textSize;
 }
 
 CustomMarker.prototype = new google.maps.OverlayView();
@@ -16,7 +17,7 @@ CustomMarker.prototype.onAdd = function () {
 	div.style.padding = "5px";
 	div.style.borderLeftColor = "gray";
 	div.style.position = 'absolute';
-	div.style.fontSize = '12px';
+	div.style.fontSize = this._textSize + "px";	
 	div.style.fontWeight = 'bold';
 	div.style.zIndex = '1000';
 	div.innerHTML = this._text;
@@ -245,7 +246,7 @@ module.exports = {
             , fillOpacity: zipData.opacity
 			, centerCoord: regionCenter
 			, tag: zipStr
-			, origOpacity: zipData.opacity
+			, data: zipData
 			, bounds: bounds
         });
 		
@@ -282,9 +283,9 @@ module.exports = {
 	/// Create a google.maps.Marker from the coordinates and the label
 	/// provided in the arguments
 	///-------------------------------------------------------------------------	
-	getCustomMarker: function(coord,label){
+	getCustomMarker: function(coord,label,textSize){
 		var CustomMarker = require("./customMarker");
-		var cusMark = new CustomMarker(coord,label);
+		var cusMark = new CustomMarker(coord,label,textSize);
 		return cusMark;		
 	},
 	
@@ -371,7 +372,7 @@ module.exports = {
 
 var helper = require("./helpers");
 
-var props = ['initLoc', 'domElem', 'zipcodes', 'apiRoute', 'colorNormal','colorHighlight'];
+var props = ['initLoc', 'domElem', 'zipcodes', 'apiRoute', 'colorNormal', 'colorHighlighted', 'infoResolver'];
 var isParamsValid = function (params) {
 	var keys = Object.keys(params);
 	for (var i in props) {
@@ -387,8 +388,11 @@ var isParamsValid = function (params) {
  * 		This is an object that must contain the following fields
  *	--------> initLoc 	: the initial location of the map
  *	--------> zipcodes	: the list of zipcodes that need to be fetched
- *	--------> domElem 	: the DOM element where the map needs to be drawn
+ *	--------> mapDomElem 	: the DOM element where the map needs to be drawn
  *  --------> apiRoute	: the API route to get the zip code data from
+ *  --------> colorNormal: the color of the polygon in normal state
+ *  --------> colorHighlighted: color of the polygon in highlighted state
+ *  --------> infoResolver: function to get HTML for tooltips / info windows
  * 
  * --- callback: 
  * 		This is a function that will be called when the map is loaded
@@ -405,7 +409,8 @@ var ZipPlotter = function (params, callback) {
 		apiRoute,
 		mapDomElem,
 		colorNormal,
-		colorHighlighted;
+		colorHighlighted,
+		infoResolver;
 		
 	//lists to store Polygons and Markers that might be drawn on the map
 	var polygons = [], markers = [];
@@ -421,6 +426,9 @@ var ZipPlotter = function (params, callback) {
 	
 	//the zoom level below which the marker labels are hidden
 	var zoomLevelThreshold = 12;
+
+	//members to manage infoWindow / tooltip
+	var info = null;
 	
 	///---------------------------------------------------------------------
 	/// this will initialize a map, configure the object based on the params
@@ -434,6 +442,7 @@ var ZipPlotter = function (params, callback) {
 			mapDomElem = params.domElem;
 			colorNormal = params.colorNormal;
 			colorHighlighted = params.colorHighlighted;
+			infoResolver = params.infoResolver;
 			
 			//draw the map with the initial location
 			map = new google.maps.Map(mapDomElem, {
@@ -448,20 +457,13 @@ var ZipPlotter = function (params, callback) {
 			//save some of these params, we might need them later
 			zipcodes = params.zipcodes;
 			apiRoute = params.apiRoute;
-			fetchAndDraw();
+			
+			//fetch the data from the initial zipcodes and draw it
+			helper.getZipsFromServerInParts(zipcodes, apiRoute, draw);
 		}
 		else throw "You're missing one or more parameters to create this object"
 	}
 	
-	///---------------------------------------------------------------------
-	/// Fetch the data from the server, draw it on the map
-	///---------------------------------------------------------------------
-	var fetchAndDraw = function () {
-		helper.getZipsFromServerInParts(zipcodes, apiRoute, function (data) {
-			zipcodeData = data;
-			draw(zipcodeData);
-		})
-	}
 	
 	///---------------------------------------------------------------------
 	/// clear any existing polygons/markers on the map
@@ -479,28 +481,29 @@ var ZipPlotter = function (params, callback) {
 	var draw = function (allData) {
 
 		var mouseEvents = {
-			click: thisObj.zipcode_click,
+			click: zipcode_clicked,
 			mouseover: zipcode_mouseover,
 			mouseout: zipcode_mouseout
 		};
 
 		if (allData != null) {
 			clear();
-			
 			var polygon;
-			//now we have all the boundary data from the server
+			
 			//let's get a polygon for each of the zipcodes in the data
 			for (var zipStr in allData) {
 				if (allData[zipStr] != null) {
 					var zipData = allData[zipStr];
-					polygon = helper.converZipToPolygon(zipStr, zipData, 0.6,mouseEvents);
+					polygon = helper.converZipToPolygon(zipStr, zipData, 0.6, mouseEvents);
 					
 					//configure appearance
 					polygon.strokeColor = colorNormal;
 					polygon.fillColor = colorNormal;
 					polygons.push(polygon);
-									
-					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr);
+
+					var textSize = map.getZoom();
+					console.log("---> textSize", textSize);
+					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr, textSize);
 					markers.push(marker);
 				}
 			}
@@ -512,33 +515,83 @@ var ZipPlotter = function (params, callback) {
 		callback(thisObj);
 	}
 	
+	///------------------------------------------------------------------------
+	/// Show the tooltip / info window over the specified polygon
+	///------------------------------------------------------------------------
+	var showInfoWindow = function (polygon) {
+
+		if (typeof (infoResolver) == typeof (function () { })) {
+			var zipcode = polygon.tag;
+			var zipData = polygon.data;
+			var infoHtml = infoResolver(zipcode, zipData);
+			var infoPosition = { lat: polygon.bounds.getCenter().lat(), lng: polygon.bounds.getCenter().lng() };
+			
+			//there is no info window shown on the screen
+			//let's create one, load the custom html into it and 
+			//display it on the screen
+			info = new google.maps.InfoWindow({
+				content: infoHtml,
+				position: infoPosition,
+				zipcode: zipcode
+			});
+			
+			//attach an event listener to see when it has been closed by pressing the ("x")
+			//this basically resets the 'info' object to null, when the infoWindow is closed
+			google.maps.event.addListener(info, 'closeclick', function () { info = null });
+			
+			//display it on the map
+			info.open(map);
+		}
+	}
+	
+	
 	///---------------------------------------------------------------------
-	/// these methods are called when a polygon (drawn on the map) is clicked,
-	/// hovered over or hovered out of. The app developer can override these
+	/// App supplied click event for polygon. Basically, since this function
+	/// is attached to "this" object, the app can override this behavior
+	/// to do more than what zipPlotter provides
 	///---------------------------------------------------------------------
-	this.zipcode_click = function(polygon,zipcode){
+	this.zipcode_click = function (polygon, zipcode, info) {
 		//Override this in the app
 	}
-	
-	var zipcode_mouseover = function(polygon,zipcode){
-		polygon.strokeColor = colorHighlighted;
+
+	///---------------------------------------------------------------------
+	/// click event handler
+	///---------------------------------------------------------------------
+	var zipcode_clicked = function (polygon, zipcode) {
+		thisObj.zipcode_click(polygon, zipcode);
+	}
+
+	///---------------------------------------------------------------------
+	/// mouseover handler for polygon
+	///---------------------------------------------------------------------
+	var zipcode_mouseover = function (polygon, zipcode) {
+		polygon.strokeWeight = 4;
 		polygon.fillColor = colorHighlighted;
-		polygon.fillOpacity = 1;
 		redrawPolygon(polygon);
+
+		if (info == null) {
+			showInfoWindow(polygon);
+		}
+		else if (zipcode != info.zipcode) {
+			info.close();
+			showInfoWindow(polygon);
+		}
 	}
 	
-	var zipcode_mouseout = function(polygon,zipcode){
-		polygon.strokeColor = colorNormal;
+	///---------------------------------------------------------------------
+	/// mouseout handler for polygon
+	///---------------------------------------------------------------------
+	var zipcode_mouseout = function (polygon, zipcode) {
+		polygon.strokeWeight = 2;
 		polygon.fillColor = colorNormal;
-		polygon.fillOpacity = polygon.origOpacity;
 		redrawPolygon(polygon);
 	}
 	
 	///---------------------------------------------------------------------
 	/// update the data (zipcodes) and redraw the maps
 	///---------------------------------------------------------------------
-	var redrawPolygon = function(polygon){
-		polygon.setMap(null); 
+	var redrawPolygon = function (polygon) {
+		polygon.setMap(null);
 		polygon.setMap(map);
 	}
 	
@@ -557,19 +610,23 @@ var ZipPlotter = function (params, callback) {
 	///---------------------------------------------------------------------
 	var manageMarkersWithZoom = function () {
 		var zoomLevel = map.getZoom();
-		console.log("--> zoom:", zoomLevel,"thresh:",zoomLevelThreshold);
 
 		if (isMarkerShown && zoomLevel < zoomLevelThreshold) {
 			isMarkerShown = false;
 			helper.clearMarkersOnMap(markers);
+			if (info!=null) info.close()
 			console.log("-----> zoomed out, clearing markers", isMarkerShown);
-
 		}
 		else if (!isMarkerShown && zoomLevel >= zoomLevelThreshold) {
 			isMarkerShown = true;
 			helper.drawMarkersOnMap(markers, map);
 			console.log("-----> zoomed in, showing markers");
 		}
+		else {
+			console.log("redraw, current zoom", zoomLevel);
+			draw(zipcodeData);
+		}
+
 	}
 	
 	//is the google maps API loaded, start init. If not, load it

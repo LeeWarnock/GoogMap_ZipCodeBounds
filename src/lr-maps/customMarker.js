@@ -1,9 +1,10 @@
 if (!google.maps) throw "Ensure that the Google Maps API has been loaded before using this module";
 
-var CustomMarker = function (coords, label) {
+var CustomMarker = function (coords, label, textSize) {
 	this._div = null;
 	this._coords = new google.maps.LatLng(coords.lat,coords.lng);
 	this._text = label;
+	this._textSize = textSize;
 }
 
 CustomMarker.prototype = new google.maps.OverlayView();
@@ -15,7 +16,7 @@ CustomMarker.prototype.onAdd = function () {
 	div.style.padding = "5px";
 	div.style.borderLeftColor = "gray";
 	div.style.position = 'absolute';
-	div.style.fontSize = '12px';
+	div.style.fontSize = this._textSize + "px";	
 	div.style.fontWeight = 'bold';
 	div.style.zIndex = '1000';
 	div.innerHTML = this._text;

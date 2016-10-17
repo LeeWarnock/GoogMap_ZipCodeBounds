@@ -11,7 +11,8 @@
 		zipcodes: [],
 		apiRoute: "/zipcodes?",
 		colorNormal: "#9b42f4",
-		colorHighlighted:"#bb40f3"
+		colorHighlighted:"#ff00ff",
+		infoResolver: getTooltipHtml		//to turn off tooltips, simply set this param to null
 	};
 
 	//UI elements here  
@@ -38,6 +39,21 @@
 
 	});
 
+	/*********************************************************************
+	 * getTooltipHtml
+	 * turn the zipcode data into appropriate tooltip HTML
+	 ********************************************************************/
+	 function getTooltipHtml(zipcode, zipData){
+		var htmlTemplate =  
+		"<div> \
+			<center> \
+				This zipcode is : <a href='#'>{zipcode}</a> \
+			</center> \
+		</div>"	 ;
+		
+		return htmlTemplate.replace("{zipcode}",zipcode);
+	 }
+	 
 	/*********************************************************************
 	 * getZipsFromInput
 	 * turn the value of the text box to a list of zipcode strings

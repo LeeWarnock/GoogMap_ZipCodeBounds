@@ -196,7 +196,7 @@ module.exports = {
             , fillOpacity: zipData.opacity
 			, centerCoord: regionCenter
 			, tag: zipStr
-			, origOpacity: zipData.opacity
+			, data: zipData
 			, bounds: bounds
         });
 		
@@ -233,9 +233,9 @@ module.exports = {
 	/// Create a google.maps.Marker from the coordinates and the label
 	/// provided in the arguments
 	///-------------------------------------------------------------------------	
-	getCustomMarker: function(coord,label){
+	getCustomMarker: function(coord,label,textSize){
 		var CustomMarker = require("./customMarker");
-		var cusMark = new CustomMarker(coord,label);
+		var cusMark = new CustomMarker(coord,label,textSize);
 		return cusMark;		
 	},
 	
