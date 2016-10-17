@@ -155,12 +155,14 @@ var ZipPlotter = function (params, callback) {
 	var zipcode_mouseover = function(polygon,zipcode){
 		polygon.strokeColor = colorHighlighted;
 		polygon.fillColor = colorHighlighted;
+		polygon.fillOpacity = 1;
 		redrawPolygon(polygon);
 	}
 	
 	var zipcode_mouseout = function(polygon,zipcode){
 		polygon.strokeColor = colorNormal;
 		polygon.fillColor = colorNormal;
+		polygon.fillOpacity = polygon.origOpacity;
 		redrawPolygon(polygon);
 	}
 	

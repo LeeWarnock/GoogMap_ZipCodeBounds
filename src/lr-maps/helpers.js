@@ -193,9 +193,10 @@ module.exports = {
             , strokeOpacity: 0.8
             , strokeWeight: 2
             , fillColor: '#ff0000'
-            , fillOpacity: opacity
+            , fillOpacity: zipData.opacity
 			, centerCoord: regionCenter
 			, tag: zipStr
+			, origOpacity: zipData.opacity
 			, bounds: bounds
         });
 		

@@ -53,6 +53,7 @@ app.get("/zipcodes",function(req,res){
        var zip = zips[i];
        if(!result.hasOwnProperty(zip)){
            result[zip] = (zipcodeData.hasOwnProperty(zip))? zipcodeData[zip] : null;
+           if(result[zip] != null) result[zip].opacity = 0.3 + Math.random();
        }
     }
     

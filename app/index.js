@@ -11,7 +11,7 @@
 		zipcodes: [],
 		apiRoute: "/zipcodes?",
 		colorNormal: "#9b42f4",
-		colorHighlighted:"#ed8afc"
+		colorHighlighted:"#bb40f3"
 	};
 
 	//UI elements here  
