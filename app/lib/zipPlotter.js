@@ -480,6 +480,8 @@ var ZipPlotter = function (params, callback) {
 	///---------------------------------------------------------------------
 	var draw = function (allData) {
 
+		console.log(allData);
+
 		var mouseEvents = {
 			click: zipcode_clicked,
 			mouseover: zipcode_mouseover,
@@ -502,7 +504,6 @@ var ZipPlotter = function (params, callback) {
 					polygons.push(polygon);
 
 					var textSize = map.getZoom();
-					console.log("---> textSize", textSize);
 					var marker = helper.getCustomMarker(polygon.centerCoord, zipStr, textSize);
 					markers.push(marker);
 				}
@@ -615,16 +616,13 @@ var ZipPlotter = function (params, callback) {
 		if (isMarkerShown && zoomLevel < zoomLevelThreshold) {
 			isMarkerShown = false;
 			helper.clearMarkersOnMap(markers);
-			if (info!=null) info.close()
-			console.log("-----> zoomed out, clearing markers", isMarkerShown);
+			if (info!=null) info.close();
 		}
 		else if (!isMarkerShown && zoomLevel >= zoomLevelThreshold) {
 			isMarkerShown = true;
-			helper.drawMarkersOnMap(markers, map);
-			console.log("-----> zoomed in, showing markers");
+			helper.drawMarkersOnMap(markers, map);			
 		}
 		else {
-			console.log("redraw, current zoom", zoomLevel);
 			draw(zipcodeData);
 		}
 
